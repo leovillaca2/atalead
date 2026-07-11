@@ -30,7 +30,7 @@ App web que transforma reuniao de prospeccao em ata executiva e lead no CRM, sem
 ## Credenciais (onde ficam)
 Todas em `.env.local` na raiz do projeto (nunca versionado).
 - Tess: PREENCHIDA (TESS_API_KEY em .env.local)
-- Supabase: pendente (Fase 0)
+- Supabase: PREENCHIDA (projeto atalead, ref fagkylsrgjhozbxthjrt, regiao Sao Paulo; URL + anon + service_role + db_password em .env.local). Org leovillacamello (mesma do gerador da Soter).
 - Evernote: pendente (developer token, sujeito a aprovacao do Evernote, ate 5 dias uteis)
 - Pipedrive: PREENCHIDA (PIPEDRIVE_API_TOKEN em .env.local)
 
@@ -41,6 +41,21 @@ ATENCAO: as chaves da Tess e do Pipedrive foram coladas no chat durante o setup.
 - Tess: incluida na conta paga.
 - Pipedrive: incluida na conta paga.
 - Claude/Gemini (so se trocarmos o motor da ata): pago por uso, centavos por ata.
+
+## Status atual (2026-07-10)
+Fase 0 completa e Fase 1a PRONTA e rodando (`npm run dev`, porta 5173).
+App React (Vite) + React Router com as 4 telas do design (Funil, Reuniao, Proximos passos, Nova reuniao), tema claro/escuro, dados de exemplo em src/lib/mock.js. Build passa limpo.
+Design importado do Claude Design (projeto "AtaLead: UI em React", id 8b1b7e8f-cbf3-477c-9142-c6f38fc92b29) via MCP DesignSync.
+Seguranca: chamadas a Tess/Evernote/Pipedrive isoladas em funcoes de servidor na pasta /api (leem process.env; nunca vao ao navegador). Cliente so usa VITE_SUPABASE_ANON_KEY.
+Falta: Fase 1b (tabelas no Supabase + dados reais), Fase 1c (ligar de verdade Tess e Pipedrive nas funcoes /api; Evernote quando a chave sair). Rodar /api local exige `vercel dev`.
+
+## Estrutura do codigo
+- index.html, vite.config.js, package.json (Vite + React)
+- src/main.jsx, src/App.jsx (layout/rota/tema), src/index.css (tokens do design)
+- src/screens/{Funil,Reuniao,Passos,NovaReuniao}.jsx
+- src/components/Icons.jsx
+- src/lib/{supabase.js, api.js (fala com /api), mock.js}
+- api/{gerar-ata.js (Tess), evernote-nota.js, enviar-pipedrive.js} = funcoes de servidor, chaves protegidas
 
 ## Plano em fases
 - Fase 0: base (projeto Supabase, login, esqueleto na Vercel, modelo de dados). Nao precisa de chave.

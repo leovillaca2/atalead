@@ -1,0 +1,351 @@
+<style>
+  :root {
+    --bg: #F5F7F7;
+    --surface: #FFFFFF;
+    --surface-2: #EEF3F2;
+    --border: #DEE6E4;
+    --border-strong: #CBD6D3;
+    --text: #14211F;
+    --muted: #5D6E6B;
+    --faint: #8A9995;
+    --accent: #0E7C74;
+    --accent-strong: #0A5C56;
+    --accent-soft: #E2F1EE;
+    --ok: #15803D;    --ok-soft: #E5F3E9;
+    --warn: #B45309;  --warn-soft: #FAEFDF;
+    --lost: #B4231C;  --lost-soft: #F8E7E5;
+    --info: #1D5FD1;
+    --shadow: 0 1px 2px rgba(20,33,31,.04), 0 6px 20px rgba(20,33,31,.06);
+    --font-sans: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "Cascadia Code", "Consolas", ui-monospace, "SF Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1211; --surface: #121C1A; --surface-2: #182421; --border: #26332F;
+      --border-strong: #33443F; --text: #E7EEEC; --muted: #97A8A4; --faint: #6E807C;
+      --accent: #34C3B7; --accent-strong: #59D3C8; --accent-soft: #10322E;
+      --ok: #45B368; --ok-soft: #10281A; --warn: #D9922F; --warn-soft: #2C2110;
+      --lost: #E0655D; --lost-soft: #2E1615; --info: #6AA0FF;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 22px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F5F7F7; --surface: #FFFFFF; --surface-2: #EEF3F2; --border: #DEE6E4;
+    --border-strong: #CBD6D3; --text: #14211F; --muted: #5D6E6B; --faint: #8A9995;
+    --accent: #0E7C74; --accent-strong: #0A5C56; --accent-soft: #E2F1EE;
+    --ok: #15803D; --ok-soft: #E5F3E9; --warn: #B45309; --warn-soft: #FAEFDF;
+    --lost: #B4231C; --lost-soft: #F8E7E5; --info: #1D5FD1;
+    --shadow: 0 1px 2px rgba(20,33,31,.04), 0 6px 20px rgba(20,33,31,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1211; --surface: #121C1A; --surface-2: #182421; --border: #26332F;
+    --border-strong: #33443F; --text: #E7EEEC; --muted: #97A8A4; --faint: #6E807C;
+    --accent: #34C3B7; --accent-strong: #59D3C8; --accent-soft: #10322E;
+    --ok: #45B368; --ok-soft: #10281A; --warn: #D9922F; --warn-soft: #2C2110;
+    --lost: #E0655D; --lost-soft: #2E1615; --info: #6AA0FF;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 22px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+  .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 16px; display: flex; flex-direction: column; gap: 26px; position: sticky; top: 0; height: 100vh; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px; }
+  .brand .mark { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(150deg, var(--accent), var(--accent-strong)); display: grid; place-items: center; color: #fff; font-size: 17px; box-shadow: var(--shadow); }
+  .brand .name { font-weight: 700; font-size: 17px; letter-spacing: -.02em; }
+  .brand .name span { color: var(--accent); }
+  .nav-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); padding: 0 8px; margin-bottom: 8px; font-weight: 600; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav a { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 9px; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: background .15s, color .15s; }
+  .nav a svg { width: 17px; height: 17px; flex: none; }
+  .nav a:hover { background: var(--surface-2); color: var(--text); }
+  .nav a.active { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+  .nav a .count { margin-left: auto; font-size: 11px; background: var(--surface-2); color: var(--muted); padding: 1px 7px; border-radius: 20px; font-variant-numeric: tabular-nums; }
+  .nav a.active .count { background: var(--accent); color: #fff; }
+  .side-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--surface-2); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#B45309,#D9922F); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
+  .side-foot .who { font-size: 12.5px; line-height: 1.25; }
+  .side-foot .who b { display: block; font-weight: 600; }
+  .side-foot .who small { color: var(--faint); }
+
+  /* Main */
+  .main { min-width: 0; display: flex; flex-direction: column; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 16px 30px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 80%, transparent); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 5; }
+  .crumbs { font-size: 13px; color: var(--faint); display: flex; gap: 7px; align-items: center; min-width: 0; }
+  .crumbs b { color: var(--text); font-weight: 600; }
+  .crumbs .sep { opacity: .5; }
+  .topbar .spacer { flex: 1; }
+  .btn { font-family: inherit; font-size: 13.5px; font-weight: 600; border-radius: 9px; padding: 9px 15px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: transform .1s, box-shadow .15s, background .15s; }
+  .btn:hover { background: var(--surface-2); }
+  .btn:active { transform: translateY(1px); }
+  .btn svg { width: 15px; height: 15px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: var(--shadow); }
+  .btn.primary:hover { background: var(--accent-strong); }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 8px; }
+  .btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .content { padding: 26px 30px 48px; max-width: 1180px; width: 100%; margin: 0 auto; }
+
+  /* Meeting header */
+  .mhead { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .mhead h1 { font-size: 25px; letter-spacing: -.02em; margin: 0 0 8px; text-wrap: balance; }
+  .mhead .meta { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 13px; align-items: center; }
+  .mhead .meta span { display: inline-flex; align-items: center; gap: 6px; }
+  .mhead .meta svg { width: 14px; height: 14px; color: var(--faint); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.accent { background: var(--accent-soft); color: var(--accent-strong); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Flow steps */
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; display: flex; align-items: center; gap: 12px; position: relative; box-shadow: var(--shadow); }
+  .step .idx { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12.5px; font-weight: 700; flex: none; border: 1.5px solid var(--border-strong); color: var(--faint); background: var(--surface-2); }
+  .step.done .idx { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step.current .idx { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .step .t { font-size: 13.5px; font-weight: 600; line-height: 1.2; }
+  .step .s { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+  .step.current { border-color: var(--accent); }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: 1.65fr 1fr; gap: 20px; align-items: start; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+  .card > .card-head { display: flex; align-items: center; gap: 10px; padding: 15px 18px; border-bottom: 1px solid var(--border); }
+  .card > .card-head h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
+  .card > .card-head .ico { color: var(--accent); display: grid; place-items: center; }
+  .card > .card-head .ico svg { width: 17px; height: 17px; }
+  .card > .card-head .right { margin-left: auto; }
+  .card-body { padding: 18px; }
+
+  .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--accent); font-weight: 700; margin: 0 0 8px; }
+  .ata-section + .ata-section { margin-top: 22px; padding-top: 22px; border-top: 1px dashed var(--border); }
+  .ata-section p { margin: 0; font-size: 14.5px; line-height: 1.62; color: var(--text); }
+  .ata-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .ata-list li { display: flex; gap: 10px; font-size: 14px; line-height: 1.5; }
+  .ata-list li svg { width: 17px; height: 17px; flex: none; margin-top: 1px; color: var(--accent); }
+  .checkline { display: flex; gap: 11px; align-items: flex-start; font-size: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+  .checkline + .checkline { margin-top: 8px; }
+  .chk { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex: none; margin-top: 1px; display: grid; place-items: center; }
+  .chk.on { background: var(--accent); border-color: var(--accent); }
+  .chk.on svg { width: 12px; height: 12px; color: #fff; }
+  .checkline .who-tag { margin-left: auto; font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag { font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-strong); }
+
+  /* Side */
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+  .speaker { display: flex; align-items: center; gap: 11px; padding: 9px 0; }
+  .speaker + .speaker { border-top: 1px solid var(--border); }
+  .sp-badge { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 7px; border-radius: 6px; flex: none; }
+  .sp-name { font-size: 13.5px; font-weight: 600; }
+  .sp-role { font-size: 11.5px; color: var(--faint); }
+  .arrow { color: var(--faint); }
+
+  .lead-card { border: 1.5px solid var(--accent); }
+  .lead-card .card-head { background: var(--accent-soft); border-bottom-color: transparent; }
+  .lead-card .card-head h2 { color: var(--accent-strong); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 9px 14px; font-size: 13.5px; margin-bottom: 16px; }
+  .kv dt { color: var(--faint); }
+  .kv dd { margin: 0; font-weight: 600; text-align: right; }
+  .value-big { font-size: 22px; font-weight: 700; letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums; }
+  .lead-foot { display: flex; flex-direction: column; gap: 9px; }
+  .btn.block { width: 100%; justify-content: center; }
+  .hint { font-size: 11.5px; color: var(--faint); text-align: center; }
+
+  .transcript { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; color: var(--muted); max-height: 168px; overflow: hidden; position: relative; }
+  .transcript .ts { color: var(--accent); }
+  .transcript .sp { color: var(--text); font-weight: 600; }
+  .fade { position: absolute; inset: auto 0 0; height: 60px; background: linear-gradient(transparent, var(--surface)); }
+
+  @media (max-width: 960px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .grid { grid-template-columns: 1fr; }
+    .flow { grid-template-columns: repeat(2, 1fr); }
+    .content { padding: 20px 18px 40px; }
+    .topbar { padding: 14px 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">◆</div>
+      <div class="name">Ata<span>Lead</span></div>
+    </div>
+    <div>
+      <div class="nav-label">Trabalho</div>
+      <nav class="nav">
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="9.5" y="4" width="6" height="11" rx="1"/><rect x="16" y="4" width="5" height="7" rx="1"/></svg> Funil <span class="count">18</span></a>
+        <a href="#" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 3z"/></svg> Reuniões <span class="count">42</span></a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg> Próximos passos <span class="count">7</span></a>
+      </nav>
+    </div>
+    <div>
+      <div class="nav-label">Sistema</div>
+      <nav class="nav">
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 7 2.6h.1A1.6 1.6 0 0 0 8 1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 15 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7z" transform="scale(0.86) translate(2,2)"/></svg> Integrações</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg> Equipe</a>
+      </nav>
+    </div>
+    <div class="side-foot">
+      <div class="avatar">AM</div>
+      <div class="who"><b>Augusto Mello</b><small>PGMais</small></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="crumbs"><span>Funil</span><span class="sep">/</span><span>Horizonte Cobranças</span><span class="sep">/</span><b>Reunião 08 jul</b></div>
+      <div class="spacer"></div>
+      <button class="btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> Nova reunião</button>
+      <button class="btn ghost" id="themeBtn" type="button" aria-label="Alternar tema"><svg id="themeIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </div>
+
+    <div class="content">
+      <div class="mhead">
+        <div style="flex:1; min-width:260px;">
+          <h1>Reunião de prospecção — Horizonte Cobranças</h1>
+          <div class="meta">
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg> 08 jul 2026</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> 47 min</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3 2.5-4.5 6-4.5S15 17 15 20"/><path d="M16 6a3 3 0 0 1 0 5.6M21 20c0-2.4-1.4-3.9-3.8-4.4"/></svg> 4 participantes</span>
+            <span class="pill accent"><span class="dot"></span> Origem: Evernote</span>
+          </div>
+        </div>
+        <span class="pill ok" style="margin-top:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Ata gerada</span>
+      </div>
+
+      <div class="flow">
+        <div class="step done"><div class="idx">✓</div><div><div class="t">Transcrição</div><div class="s">Recebida · 4 falantes</div></div></div>
+        <div class="step done"><div class="idx">✓</div><div><div class="t">Ata executiva</div><div class="s">Gerada pela Tess</div></div></div>
+        <div class="step current"><div class="idx">3</div><div><div class="t">Lead</div><div class="s">Em revisão</div></div></div>
+        <div class="step"><div class="idx">4</div><div><div class="t">Pipedrive</div><div class="s">Aguardando envio</div></div></div>
+      </div>
+
+      <div class="grid">
+        <!-- ATA -->
+        <section class="card">
+          <div class="card-head">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M8 13h8M8 17h5"/></svg></span>
+            <h2>Ata executiva</h2>
+            <div class="right"><button class="btn ghost" type="button" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></div>
+          </div>
+          <div class="card-body">
+            <div class="ata-section">
+              <p class="eyebrow">Resumo</p>
+              <p>A Horizonte Cobranças busca uma plataforma de comunicação para régua de cobrança com WhatsApp, SMS e e-mail integrados. Hoje operam com duas ferramentas separadas e sem visão consolidada de recuperação. O time demonstrou urgência: querem reduzir custo por acionamento e melhorar a taxa de contato antes do fim do trimestre.</p>
+            </div>
+            <div class="ata-section">
+              <p class="eyebrow">Decisões</p>
+              <ul class="ata-list">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Avançar para uma proposta comercial com foco em WhatsApp oficial e SMS.</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Prova de conceito de 30 dias com uma carteira piloto.</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Integração via API com o sistema de cobrança atual deles.</li>
+              </ul>
+            </div>
+            <div class="ata-section">
+              <p class="eyebrow">Próximos passos</p>
+              <div class="checkline"><span class="chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><div>Enviar proposta com escopo da PoC<div class="sp-role">até 11 jul</div></div><span class="who-tag">Augusto</span></div>
+              <div class="checkline"><span class="chk"></span><div>Agendar call técnica sobre a API<div class="sp-role">semana de 14 jul</div></div><span class="who-tag">Cristhiane</span></div>
+              <div class="checkline"><span class="chk"></span><div>Confirmar volume mensal de disparos<div class="sp-role">pendente com o cliente</div></div><span class="who-tag">Marina</span></div>
+            </div>
+            <div class="ata-section">
+              <p class="eyebrow">Produtos para a proposta</p>
+              <div class="tags">
+                <span class="tag">WhatsApp API oficial</span>
+                <span class="tag">SMS em massa</span>
+                <span class="tag">Régua de cobrança</span>
+                <span class="tag">Dashboard de recuperação</span>
+                <span class="tag">Integração via API</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SIDE -->
+        <div class="stack">
+          <section class="card lead-card">
+            <div class="card-head">
+              <span class="ico" style="color:var(--accent-strong)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5c0-1.4 1.3-2 3-2s3 .8 3 2-1.3 2-3 2-3 .6-3 2 1.3 2 3 2 3-.6 3-2"/></svg></span>
+              <h2>Lead para o CRM</h2>
+            </div>
+            <div class="card-body">
+              <dl class="kv">
+                <dt>Empresa</dt><dd>Horizonte Cobranças</dd>
+                <dt>Contato</dt><dd>Marina Alves</dd>
+                <dt>Cargo</dt><dd>Head de Operações</dd>
+                <dt>Segmento</dt><dd>Recuperação de crédito</dd>
+                <dt>Etapa sugerida</dt><dd>Proposta</dd>
+              </dl>
+              <p class="eyebrow" style="margin-bottom:4px;">Valor estimado</p>
+              <div class="value-big">R$ 8.400 <span style="font-size:13px;color:var(--faint);font-weight:600;">/ mês</span></div>
+              <div style="height:16px;"></div>
+              <div class="lead-foot">
+                <button class="btn primary block" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Revisar e enviar ao Pipedrive</button>
+                <p class="hint">Você confere os dados antes de criar o negócio no CRM</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-head">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3 2.5-4.5 6-4.5S15 17 15 20"/><path d="M16 6a3 3 0 0 1 0 5.6M21 20c0-2.4-1.4-3.9-3.8-4.4"/></svg></span>
+              <h2>Participantes</h2>
+            </div>
+            <div class="card-body" style="padding-top:6px;padding-bottom:8px;">
+              <div class="speaker"><span class="sp-badge">Speaker 1</span><span class="arrow">→</span><div><div class="sp-name">Marina Alves</div><div class="sp-role">Horizonte · Head de Operações</div></div></div>
+              <div class="speaker"><span class="sp-badge">Speaker 2</span><span class="arrow">→</span><div><div class="sp-name">Augusto Mello</div><div class="sp-role">PGMais · Comercial</div></div></div>
+              <div class="speaker"><span class="sp-badge">Speaker 3</span><span class="arrow">→</span><div><div class="sp-name">Cristhiane Garcia</div><div class="sp-role">PGMais · Pré-vendas</div></div></div>
+              <div class="speaker"><span class="sp-badge">Speaker 4</span><span class="arrow">→</span><div><div class="sp-name">Rafael Nunes</div><div class="sp-role">Horizonte · TI</div></div></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-head">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+              <h2>Transcrição</h2>
+              <div class="right"><span class="pill accent" style="font-size:11px;">fonte</span></div>
+            </div>
+            <div class="card-body">
+              <div class="transcript">
+                <span class="ts">[00:02]</span> <span class="sp">Marina:</span> A gente hoje tem dois sistemas, um pra SMS e outro pro WhatsApp, e não conversa.<br>
+                <span class="ts">[00:19]</span> <span class="sp">Augusto:</span> Entendi. E o volume mensal de acionamentos, vocês têm esse número?<br>
+                <span class="ts">[00:34]</span> <span class="sp">Rafael:</span> Gira em torno de duzentos mil por mês, mas queremos crescer.<br>
+                <span class="ts">[00:51]</span> <span class="sp">Cristhiane:</span> Perfeito, dá pra unificar isso numa régua só, com dashboard de recuperação.<br>
+                <div class="fade"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeBtn');
+    var sun = 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z';
+    var moon = 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z';
+    function current() {
+      return root.getAttribute('data-theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+    function apply(t) {
+      root.setAttribute('data-theme', t);
+      document.getElementById('themeIco').innerHTML =
+        '<path d="' + (t === 'dark' ? sun : moon) + '"/>';
+    }
+    apply(current());
+    btn.addEventListener('click', function () {
+      apply(current() === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>
