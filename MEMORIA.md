@@ -67,6 +67,16 @@ ESTADO 2026-07-11 (funcional e verificado em producao):
   - /api/enviar-pipedrive faz criar OU atualizar negocio, com CHECK DE CONFLITO por update_time: se o negocio mudou no Pipedrive depois da ultima sync, devolve {conflito:true} e o front abre um MODAL (componente Modal.jsx, nao o confirm do navegador) com "Sobrescrever" ou "Cancelar". Botao "Atualizar no Pipedrive" na tela da reuniao.
   - Vinculo guardado em reunioes: pipedrive_deal_id/org_id/person_id/update_time/synced_at (migration 20260711000001).
   - AINDA EM MODO SEGURO (PIPEDRIVE_SAFE_MODE=true): a leitura de conflito roda, mas NADA e escrito. Pra ativar de verdade: setar PIPEDRIVE_SAFE_MODE=false no Vercel (e opcional PIPEDRIVE_STAGE_ID pra etapa de entrada). Arquitetura: mao unica AtaLead->Pipedrive (escrita por clique) e Pipedrive->AtaLead (leitura). SEM sync bidirecional.
+
+## Features adicionadas 2026-07-11 (loop autonomo)
+- #6 Tess auto-preenche titulo + participantes (gerar-ata devolve tambem titulo/participantes; Nova reuniao usa se o form estiver vazio). Titulo e participantes viraram opcionais.
+- #1 Editar ata (resumo) e lead na tela da reuniao antes de enviar (updateAta).
+- #2 Seletor de Funil + Etapa no envio ao Pipedrive (/api/pipedrive-stages; enviar-pipedrive aceita pipelineId/stageId; default do funil no localStorage). /api/pipedrive-pipelines lista os funis.
+- #4 Tela Reunioes /reunioes: historico com busca por empresa/titulo (db.listarReunioes), item no menu.
+- #5 Notas por reuniao (coluna notas, migration 20260711000002; editor na tela da reuniao, db.salvarNotas).
+- #9 Mini painel no topo do historico: reunioes no mes, total, valor estimado somado.
+- Anexar PDF/Word/TXT na Nova reuniao (extrai texto no navegador, libs pdfjs/mammoth sob demanda via import dinamico); botao Evernote removido. Rodape mostra nome amigavel (Augusto Mello).
+- FALTA (nao feito no loop, exige OK do usuario): #3 ligar Pipedrive de verdade = setar PIPEDRIVE_SAFE_MODE=false no Vercel + teste controlado de 1 negocio. #10 gravar/transcrever no proprio app (navegador MediaRecorder + agente de transcricao da Tess, ex. agente 4431).
 - Falta: Evernote (chave no suporte, modo colar cobre); trocar a senha fraca; refinar RLS por dono se virar multiusuario; seed opcional. Rodar /api local = `vercel dev`.
 
 ## Estrutura do codigo
