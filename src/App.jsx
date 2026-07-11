@@ -5,7 +5,8 @@ import Funil from "./screens/Funil.jsx";
 import Reuniao from "./screens/Reuniao.jsx";
 import Passos from "./screens/Passos.jsx";
 import NovaReuniao from "./screens/NovaReuniao.jsx";
-import { colunas, tarefasAbertas } from "./lib/mock.js";
+import Login from "./screens/Login.jsx";
+import { supabase } from "./lib/supabase.js";
 
 function useTheme() {
   const [tema, setTema] = useState(() => localStorage.getItem("atalead-tema") || "claro");
@@ -16,15 +17,15 @@ function useTheme() {
   return [tema, () => setTema((t) => (t === "claro" ? "escuro" : "claro"))];
 }
 
-function Sidebar() {
+function Sidebar({ email }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const totalProspects = colunas.reduce((n, c) => n + c.cards.length, 0);
   const items = [
-    { to: "/", name: "Funil", icon: "funil", badge: totalProspects, match: (p) => p === "/" },
-    { to: "/reuniao/r1", name: "Reuniões", icon: "reunioes", badge: 12, match: (p) => p.startsWith("/reuniao") },
-    { to: "/passos", name: "Próximos passos", icon: "passos", badge: tarefasAbertas.length, match: (p) => p === "/passos" },
+    { to: "/", name: "Funil", icon: "funil", match: (p) => p === "/" },
+    { to: "/nova", name: "Nova reunião", icon: "reunioes", match: (p) => p.startsWith("/reuniao") || p === "/nova" },
+    { to: "/passos", name: "Próximos passos", icon: "passos", match: (p) => p === "/passos" },
   ];
+  const iniciais = (email || "?").slice(0, 2).toUpperCase();
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -34,17 +35,15 @@ function Sidebar() {
       <div className="nav-label">TRABALHO</div>
       {items.map((it) => (
         <button key={it.to} className={"navitem" + (it.match(pathname) ? " active" : "")} onClick={() => nav(it.to)}>
-          <Icon name={it.icon} size={17} />
-          <span>{it.name}</span>
-          <span className="badge">{it.badge}</span>
+          <Icon name={it.icon} size={17} /><span>{it.name}</span>
         </button>
       ))}
       <div className="nav-label mt">SISTEMA</div>
       <button className="navitem"><Icon name="settings" size={17} /><span>Integrações</span></button>
-      <button className="navitem"><Icon name="team" size={17} /><span>Equipe</span></button>
+      <button className="navitem" onClick={() => supabase?.auth.signOut()}><Icon name="team" size={17} /><span>Sair</span></button>
       <div className="side-foot">
-        <div className="av">AM</div>
-        <div className="who"><b>Augusto Mello</b><small>PGMais</small></div>
+        <div className="av">{iniciais}</div>
+        <div className="who"><b>{email || "Usuário"}</b><small>PGMais</small></div>
       </div>
     </aside>
   );
@@ -53,29 +52,13 @@ function Sidebar() {
 function TopBar({ tema, toggleTema }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const isReuniao = pathname.startsWith("/reuniao");
+  const titulo = pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Funil";
   return (
     <div className="topbar">
-      <div className="crumbs">
-        {isReuniao ? (
-          <>
-            <span className="link" onClick={() => nav("/")}>Funil</span>
-            <span>/</span>
-            <span>Horizonte Cobranças</span>
-            <span>/</span>
-            <span className="cur">Reunião 08 jul</span>
-          </>
-        ) : (
-          <span className="cur">
-            {pathname === "/" ? "Funil" : pathname === "/passos" ? "Próximos passos" : "Nova reunião"}
-          </span>
-        )}
-      </div>
+      <div className="crumbs"><span className="cur">{titulo}</span></div>
       <div className="top-actions">
         <button className="btn" onClick={() => nav("/nova")}><Icon name="plus" size={15} strokeWidth={2.2} /><span>Nova reunião</span></button>
-        <button className="btn icon-btn" title="Alternar tema" onClick={toggleTema}>
-          <Icon name={tema === "claro" ? "moon" : "sun"} size={16} />
-        </button>
+        <button className="btn icon-btn" title="Alternar tema" onClick={toggleTema}><Icon name={tema === "claro" ? "moon" : "sun"} size={16} /></button>
       </div>
     </div>
   );
@@ -83,9 +66,24 @@ function TopBar({ tema, toggleTema }) {
 
 export default function App() {
   const [tema, toggleTema] = useTheme();
+  const [sessao, setSessao] = useState(undefined); // undefined = carregando
+
+  useEffect(() => {
+    if (!supabase) { setSessao(null); return; }
+    supabase.auth.getSession().then(({ data }) => setSessao(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSessao(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  if (sessao === undefined) {
+    return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "var(--text3)" }}>Carregando…</div>;
+  }
+  if (!sessao) return <Login />;
+
+  const email = sessao.user?.email;
   return (
     <div className="app">
-      <Sidebar />
+      <Sidebar email={email} />
       <main className="main">
         <TopBar tema={tema} toggleTema={toggleTema} />
         <Routes>

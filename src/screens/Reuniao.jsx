@@ -1,149 +1,152 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
-import { reuniaoDemo } from "../lib/mock.js";
-// import { enviarPipedrive } from "../lib/api.js"; // ligado na Fase 1c (servidor)
+import { getReuniao, togglePasso, fmtValor } from "../lib/db.js";
+import { enviarPipedrive } from "../lib/api.js";
 
 export default function Reuniao() {
-  const r = reuniaoDemo;
-  const [tarefas, setTarefas] = useState(r.tarefas);
+  const { id } = useParams();
+  const [dados, setDados] = useState(null);
+  const [erro, setErro] = useState("");
+  const [passos, setPassos] = useState([]);
   const [enviado, setEnviado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [msgEnvio, setMsgEnvio] = useState("");
 
-  const toggle = (id) =>
-    setTarefas((ts) => ts.map((t) => (t.id === id ? { ...t, feito: !t.feito } : t)));
+  useEffect(() => {
+    getReuniao(id)
+      .then((d) => { setDados(d); setPassos(d.passos); })
+      .catch((e) => setErro(e.message || "Reunião não encontrada"));
+  }, [id]);
+
+  if (erro) return <div className="screen" style={{ color: "var(--danger)" }}>{erro}</div>;
+  if (!dados) return <div className="screen" style={{ color: "var(--text3)" }}>Carregando…</div>;
+
+  const { reuniao, participantes, ata } = dados;
+  const lead = (ata && ata.lead) || {};
+  const decisoes = (ata && ata.decisoes) || [];
+  const produtos = (ata && ata.produtos) || [];
+
+  async function toggle(p) {
+    const novo = !p.feito;
+    setPassos((ps) => ps.map((x) => (x.id === p.id ? { ...x, feito: novo } : x)));
+    try { await togglePasso(p.id, novo); } catch { /* mantem otimista */ }
+  }
 
   async function enviar() {
-    // Fase 1c: chamada real protegida -> await enviarPipedrive({ lead: r.lead, ata: r.ata })
-    setEnviado(true);
+    setEnviando(true); setMsgEnvio("");
+    try {
+      const r = await enviarPipedrive({ lead, ata });
+      setEnviado(true);
+      setMsgEnvio(r.simulado ? "Modo seguro: nada foi criado no Pipedrive real." : "Negócio criado no Pipedrive.");
+    } catch (e) {
+      setMsgEnvio(e.message || "Falha ao enviar.");
+    } finally { setEnviando(false); }
   }
 
   return (
     <div className="screen" style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 1480 }}>
-      {/* Cabecalho */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div className="mhead-top">
-          <h1 style={{ fontSize: 26 }}>{r.titulo}</h1>
+          <h1 style={{ fontSize: 26 }}>{reuniao.titulo}</h1>
           <span className="pill primary"><Icon name="check" size={12} strokeWidth={3} />Ata gerada</span>
         </div>
         <div className="mmeta">
-          <span><Icon name="calendar" size={14} />{r.data}</span>
-          <span><Icon name="clock" size={14} />{r.duracao}</span>
-          <span><Icon name="team" size={14} />{r.participantes.length} participantes</span>
-          <span className="pill muted"><span className="dot" />Origem: {r.origem}</span>
+          {reuniao.data && <span><Icon name="calendar" size={14} />{reuniao.data}</span>}
+          <span><Icon name="team" size={14} />{participantes.length} participantes</span>
+          <span className="pill muted"><span className="dot" />Origem: {reuniao.origem}</span>
         </div>
       </div>
 
-      {/* Etapas */}
       <div className="steps">
-        <div className="step done"><div className="circ"><Icon name="check" size={14} strokeWidth={3} /></div><div><div className="t">Transcrição</div><div className="s">Recebida · 4 falantes</div></div></div>
+        <div className="step done"><div className="circ"><Icon name="check" size={14} strokeWidth={3} /></div><div><div className="t">Transcrição</div><div className="s">Recebida</div></div></div>
         <div className="step done"><div className="circ"><Icon name="check" size={14} strokeWidth={3} /></div><div><div className="t">Ata executiva</div><div className="s">Gerada pela Tess</div></div></div>
         <div className={"step" + (enviado ? " done" : " current")}><div className="circ">{enviado ? <Icon name="check" size={14} strokeWidth={3} /> : "3"}</div><div><div className="t">Lead</div><div className="s">{enviado ? "Aprovado" : "Em revisão"}</div></div></div>
-        <div className={"step" + (enviado ? " done" : "")}><div className="circ">{enviado ? <Icon name="check" size={14} strokeWidth={3} /> : "4"}</div><div><div className="t">Pipedrive</div><div className="s">{enviado ? "Negócio criado" : "Aguardando envio"}</div></div></div>
+        <div className={"step" + (enviado ? " done" : "")}><div className="circ">{enviado ? <Icon name="check" size={14} strokeWidth={3} /> : "4"}</div><div><div className="t">Pipedrive</div><div className="s">{enviado ? "Enviado" : "Aguardando"}</div></div></div>
       </div>
 
-      {/* Colunas */}
       <div className="cols">
-        {/* Ata */}
         <div className="col-main card">
           <div className="card-head">
             <div className="card-title"><Icon name="doc" size={16} /><span>Ata executiva</span></div>
-            <button className="btn ghost icon-btn" title="Editar ata"><Icon name="edit" size={14} /></button>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div className="ata-block">
               <div className="eyebrow">RESUMO</div>
-              <p className="ata-p">{r.ata.resumo}</p>
+              <p className="ata-p">{ata?.resumo || "—"}</p>
             </div>
-            <div className="divider" />
-            <div className="ata-block">
+            {decisoes.length > 0 && (<><div className="divider" /><div className="ata-block">
               <div className="eyebrow">DECISÕES</div>
-              {r.ata.decisoes.map((d, i) => (
-                <div className="bullet" key={i}><Icon name="check" size={15} strokeWidth={2.6} /><span>{d}</span></div>
-              ))}
-            </div>
-            <div className="divider" />
-            <div className="ata-block">
+              {decisoes.map((d, i) => (<div className="bullet" key={i}><Icon name="check" size={15} strokeWidth={2.6} /><span>{d}</span></div>))}
+            </div></>)}
+            {passos.length > 0 && (<><div className="divider" /><div className="ata-block">
               <div className="eyebrow">PRÓXIMOS PASSOS</div>
-              {tarefas.map((t) => (
+              {passos.map((t) => (
                 <div className={"checkline" + (t.feito ? " done" : "")} key={t.id}>
-                  <div className={"chk" + (t.feito ? " on" : "")} onClick={() => toggle(t.id)}>
-                    {t.feito && <Icon name="check" size={11} strokeWidth={3.4} />}
-                  </div>
-                  <div className="body"><div className="ttl">{t.titulo}</div><div className="sub">{t.sub}</div></div>
-                  <div className="resp">{t.resp}</div>
+                  <div className={"chk" + (t.feito ? " on" : "")} onClick={() => toggle(t)}>{t.feito && <Icon name="check" size={11} strokeWidth={3.4} />}</div>
+                  <div className="body"><div className="ttl">{t.titulo}</div>{t.prazo && <div className="sub">{t.prazo}</div>}</div>
+                  {t.responsavel && <div className="resp">{t.responsavel}</div>}
                 </div>
               ))}
-            </div>
-            <div className="divider" />
-            <div className="ata-block">
+            </div></>)}
+            {produtos.length > 0 && (<><div className="divider" /><div className="ata-block">
               <div className="eyebrow">PRODUTOS PARA A PROPOSTA</div>
-              <div className="tags">{r.ata.produtos.map((p, i) => <span className="tag" key={i}>{p}</span>)}</div>
-            </div>
+              <div className="tags">{produtos.map((p, i) => <span className="tag" key={i}>{p}</span>)}</div>
+            </div></>)}
           </div>
         </div>
 
-        {/* Lateral */}
         <div className="col-side">
-          {/* Lead */}
           <div className="card" style={{ borderColor: "var(--primary)", borderWidth: 1.5, overflow: "hidden" }}>
             <div className="card-head" style={{ background: "var(--primary-soft)", borderBottom: "1px solid var(--border)" }}>
               <div className="card-title"><Icon name="target" size={15} /><span>Lead para o CRM</span></div>
             </div>
             <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div className="kv"><span className="k">Empresa</span><span className="v">{r.lead.empresa}</span></div>
-              <div className="kv"><span className="k">Contato</span><span className="v">{r.lead.contato}</span></div>
-              <div className="kv"><span className="k">Cargo</span><span className="v">{r.lead.cargo}</span></div>
-              <div className="kv"><span className="k">Segmento</span><span className="v">{r.lead.segmento}</span></div>
-              <div className="kv"><span className="k">Etapa sugerida</span><span className="v">{r.lead.etapa}</span></div>
-              <div className="divider" style={{ margin: "4px 0" }} />
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", color: "var(--text3)" }}>VALOR ESTIMADO</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span className="value-big">{r.lead.valor}</span>
-                <span style={{ fontSize: 13, color: "var(--text3)" }}>{r.lead.periodo}</span>
-              </div>
+              {lead.empresa && <div className="kv"><span className="k">Empresa</span><span className="v">{lead.empresa}</span></div>}
+              {lead.contato && <div className="kv"><span className="k">Contato</span><span className="v">{lead.contato}</span></div>}
+              {lead.cargo && <div className="kv"><span className="k">Cargo</span><span className="v">{lead.cargo}</span></div>}
+              {lead.segmento && <div className="kv"><span className="k">Segmento</span><span className="v">{lead.segmento}</span></div>}
+              {lead.etapa && <div className="kv"><span className="k">Etapa sugerida</span><span className="v">{lead.etapa}</span></div>}
+              {lead.valor && (<>
+                <div className="divider" style={{ margin: "4px 0" }} />
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", color: "var(--text3)" }}>VALOR ESTIMADO</div>
+                <div className="value-big">{lead.valor}</div>
+              </>)}
               {enviado ? (
-                <>
-                  <div className="pill ok block" style={{ justifyContent: "center", padding: "11px 16px", marginTop: 4 }}>
-                    <Icon name="check" size={15} strokeWidth={2.6} /><span>Enviado ao Pipedrive</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>Negócio criado no funil de vendas do Pipedrive</div>
-                </>
+                <><div className="pill ok" style={{ justifyContent: "center", padding: "11px 16px", marginTop: 4 }}><Icon name="check" size={15} strokeWidth={2.6} /><span>Enviado</span></div>
+                <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>{msgEnvio}</div></>
               ) : (
-                <>
-                  <button className="btn primary block" style={{ marginTop: 4 }} onClick={enviar}>
-                    <Icon name="arrow" size={15} strokeWidth={2.2} /><span>Revisar e enviar ao Pipedrive</span>
-                  </button>
-                  <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>Você confere os dados antes de criar o negócio no CRM</div>
-                </>
+                <><button className="btn primary block" style={{ marginTop: 4 }} onClick={enviar} disabled={enviando}>
+                  <Icon name="arrow" size={15} strokeWidth={2.2} /><span>{enviando ? "Enviando..." : "Revisar e enviar ao Pipedrive"}</span></button>
+                <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>{msgEnvio || "Você confere os dados antes de criar o negócio"}</div></>
               )}
             </div>
           </div>
 
-          {/* Participantes */}
-          <div className="card">
-            <div className="card-head"><div className="card-title"><Icon name="team" size={15} /><span>Participantes</span></div></div>
-            <div className="card-body" style={{ paddingTop: 8, paddingBottom: 14 }}>
-              {r.participantes.map((p) => (
-                <div className="speaker" key={p.speaker}>
-                  <span className="sp-badge mono">{p.speaker}</span>
-                  <Icon name="arrow" size={13} style={{ color: "var(--text3)", flexShrink: 0 }} />
-                  <div><div className="sp-name">{p.nome}</div><div className="sp-role">{p.desc}</div></div>
-                </div>
-              ))}
+          {participantes.length > 0 && (
+            <div className="card">
+              <div className="card-head"><div className="card-title"><Icon name="team" size={15} /><span>Participantes</span></div></div>
+              <div className="card-body" style={{ paddingTop: 8, paddingBottom: 14 }}>
+                {participantes.map((p) => (
+                  <div className="speaker" key={p.id}>
+                    <span className="sp-badge mono">{p.speaker}</span>
+                    <Icon name="arrow" size={13} style={{ color: "var(--text3)", flexShrink: 0 }} />
+                    <div><div className="sp-name">{p.nome}</div>{(p.empresa || p.papel) && <div className="sp-role">{[p.empresa, p.papel].filter(Boolean).join(" · ")}</div>}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Transcricao */}
-          <div className="card">
-            <div className="card-head">
-              <div className="card-title"><Icon name="mic" size={15} /><span>Transcrição</span></div>
-              <span className="pill muted" style={{ fontSize: 11.5 }}>fonte</span>
+          {reuniao.transcricao && (
+            <div className="card">
+              <div className="card-head">
+                <div className="card-title"><Icon name="mic" size={15} /><span>Transcrição</span></div>
+                <span className="pill muted" style={{ fontSize: 11.5 }}>fonte</span>
+              </div>
+              <div className="transcript mono" style={{ whiteSpace: "pre-wrap" }}>{reuniao.transcricao}</div>
             </div>
-            <div className="transcript mono">
-              {r.transcricao.map((l, i) => (
-                <div key={i}><span className="ts">[{l.ts}]</span> <strong>{l.quem}:</strong> {l.texto}</div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
