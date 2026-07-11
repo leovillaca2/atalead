@@ -1,0 +1,14 @@
+# Segredos e ambiente
+.env
+.env.local
+.env.*.local
+
+# Dependencias e build
+node_modules/
+dist/
+build/
+.vercel/
+
+# Logs e temporarios
+*.log
+.DS_Store
