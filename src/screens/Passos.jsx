@@ -5,14 +5,20 @@ import { listarPassosAbertos, togglePasso } from "../lib/db.js";
 export default function Passos() {
   const [passos, setPassos] = useState(null);
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
 
   useEffect(() => {
     listarPassosAbertos().then(setPassos).catch((e) => setErro(e.message || "Erro ao carregar"));
   }, []);
 
   async function concluir(p) {
+    setAviso("");
     setPassos((ps) => ps.filter((x) => x.id !== p.id));
-    try { await togglePasso(p.id, true); } catch { /* segue */ }
+    try { await togglePasso(p.id, true); }
+    catch {
+      setPassos((ps) => [p, ...ps]); // desfaz: devolve o passo à lista
+      setAviso("Não consegui concluir esse passo. Tente de novo.");
+    }
   }
 
   if (erro) return <div className="screen" style={{ color: "var(--danger)" }}>{erro}</div>;
@@ -24,6 +30,8 @@ export default function Passos() {
         <h1>Próximos passos</h1>
         <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>{passos.length} em aberto em todas as reuniões</div>
       </div>
+
+      {aviso && <div style={{ fontSize: 13, color: "var(--danger)", background: "var(--danger-soft)", padding: "10px 12px", borderRadius: 9 }}>{aviso}</div>}
 
       <div className="card" style={{ overflow: "hidden" }}>
         {passos.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--text3)", fontSize: 13 }}>Nada em aberto.</div>}

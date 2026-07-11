@@ -50,10 +50,10 @@ export default async function handler(req, res) {
 
     // 3) ATUALIZAR negocio existente.
     if (dealId) {
-      const upd = await (await fetch(`${BASE}/deals/${dealId}?${q}`, jf({ m: "PUT", b: {
-        title: `${lead.empresa} — proposta`,
-        value: parseValor(lead.valor) || undefined,
-      } }))).json();
+      const valorUpd = parseValor(lead.valor);
+      const bodyUpd = { title: `${lead.empresa} — proposta` };
+      if (valorUpd != null) bodyUpd.value = valorUpd; // nao descarta 0
+      const upd = await (await fetch(`${BASE}/deals/${dealId}?${q}`, jf({ m: "PUT", b: bodyUpd }))).json();
       if (!upd.success) return res.status(502).json({ erro: "Falha ao atualizar negócio", detalhe: upd });
       return res.status(200).json({ ok: true, dealId, update_time: upd.data.update_time });
     }
@@ -102,7 +102,15 @@ export default async function handler(req, res) {
       if (subj) await fetch(`${BASE}/activities?${q}`, jf({ m: "POST", b: { subject: subj, deal_id: novoDealId, done: 0 } }));
     }
 
-    return res.status(200).json({ ok: true, dealId: novoDealId, orgId, personId, update_time: deal.data.update_time });
+    // Nota e atividades mudam o negocio: releia pra guardar o update_time FINAL,
+    // senao o proximo "Atualizar" acusaria conflito falso.
+    let updateTime = deal.data.update_time;
+    try {
+      const re = await (await fetch(`${BASE}/deals/${novoDealId}?${q}`)).json();
+      if (re && re.data && re.data.update_time) updateTime = re.data.update_time;
+    } catch { /* mantem o do create */ }
+
+    return res.status(200).json({ ok: true, dealId: novoDealId, orgId, personId, update_time: updateTime });
   } catch (e) {
     return res.status(502).json({ erro: "Erro de rede ao chamar o Pipedrive", detalhe: String(e) });
   }

@@ -8,27 +8,41 @@ async function bearer() {
   return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
 }
 
-async function post(path, body) {
-  const res = await fetch(path, {
+// fetch com timeout: evita a UI ficar "Enviando..." pra sempre se a rede pendurar.
+async function fetchT(path, opts = {}, ms = 45000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(path, { ...opts, signal: ctrl.signal });
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("A operação demorou demais. Tente de novo.");
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function post(path, body, ms) {
+  const res = await fetchT(path, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await bearer()) },
     body: JSON.stringify(body || {}),
-  });
+  }, ms);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.erro || `Falha em ${path}`);
   return data;
 }
 
-async function get(path) {
-  const res = await fetch(path, { headers: await bearer() });
+async function get(path, ms) {
+  const res = await fetchT(path, { headers: await bearer() }, ms);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.erro || `Falha em ${path}`);
   return data;
 }
 
-// Gera a ata a partir da transcricao (servidor chama a Tess).
+// Gera a ata a partir da transcricao (servidor chama a Tess). Timeout maior: a Tess demora.
 export function gerarAta({ transcricao, participantes }) {
-  return post("/api/gerar-ata", { transcricao, participantes });
+  return post("/api/gerar-ata", { transcricao, participantes }, 110000);
 }
 
 // Puxa a transcricao de uma nota do Evernote (servidor chama o Evernote).
@@ -48,7 +62,7 @@ export function usersPipedrive() {
 
 // Detalhe completo de um negocio do Pipedrive (exige login).
 export async function dealPipedrive(id) {
-  const res = await fetch("/api/pipedrive-deal?id=" + encodeURIComponent(id), { headers: await bearer() });
+  const res = await fetchT("/api/pipedrive-deal?id=" + encodeURIComponent(id), { headers: await bearer() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.erro || "Falha ao ler o negócio");
   return data;
@@ -81,7 +95,7 @@ export async function googleConectarUrl() {
 
 // Le os proximos eventos do Google Calendar do usuario.
 export async function googleEventos() {
-  const res = await fetch("/api/google/eventos", { headers: await bearer() });
+  const res = await fetchT("/api/google/eventos", { headers: await bearer() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.erro || "Falha ao ler o calendário");
   return data;
@@ -89,7 +103,7 @@ export async function googleEventos() {
 
 // Cria um evento no Google Calendar (escreve na agenda).
 export async function criarEventoGoogle(dados) {
-  const res = await fetch("/api/google/criar-evento", {
+  const res = await fetchT("/api/google/criar-evento", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await bearer()) },
     body: JSON.stringify(dados),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
 import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, salvarNotas, fmtValor } from "../lib/db.js";
@@ -12,6 +12,7 @@ const CAMPOS_LEAD = [
 
 export default function Reuniao() {
   const { id } = useParams();
+  const nav = useNavigate();
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState("");
   const [passos, setPassos] = useState([]);
@@ -34,6 +35,7 @@ export default function Reuniao() {
 
   const [notas, setNotas] = useState("");
   const [salvandoNotas, setSalvandoNotas] = useState(false);
+  const [msgNotas, setMsgNotas] = useState("");
 
   useEffect(() => {
     getReuniao(id)
@@ -75,7 +77,11 @@ export default function Reuniao() {
   async function toggle(p) {
     const novo = !p.feito;
     setPassos((ps) => ps.map((x) => (x.id === p.id ? { ...x, feito: novo } : x)));
-    try { await togglePasso(p.id, novo); } catch { /* otimista */ }
+    try { await togglePasso(p.id, novo); }
+    catch {
+      setPassos((ps) => ps.map((x) => (x.id === p.id ? { ...x, feito: !novo } : x)));
+      setMsgEnvio("Não consegui salvar esse passo. Tente de novo.");
+    }
   }
 
   function iniciarEdicao() {
@@ -95,8 +101,10 @@ export default function Reuniao() {
   }
 
   async function salvarNotasFn() {
-    setSalvandoNotas(true);
-    try { await salvarNotas(id, notas); } catch { /* segue */ } finally { setSalvandoNotas(false); }
+    setSalvandoNotas(true); setMsgNotas("");
+    try { await salvarNotas(id, notas); setMsgNotas("Salvo"); }
+    catch { setMsgNotas("Falha ao salvar"); }
+    finally { setSalvandoNotas(false); }
   }
 
   async function enviar(force = false) {
@@ -119,6 +127,9 @@ export default function Reuniao() {
 
   return (
     <div className="screen" style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 1480 }}>
+      <button className="btn" style={{ alignSelf: "flex-start", boxShadow: "none" }} onClick={() => nav(-1)}>
+        <Icon name="arrow" size={15} style={{ transform: "scaleX(-1)" }} /> Voltar
+      </button>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div className="mhead-top">
           <h1 style={{ fontSize: 26 }}>{reuniao.titulo}</h1>
@@ -208,6 +219,11 @@ export default function Reuniao() {
                   <Icon name="arrow" size={15} strokeWidth={2.2} /><span>{enviando ? "Enviando..." : jaTemDeal ? "Atualizar no Pipedrive" : "Revisar e enviar ao Pipedrive"}</span>
                 </button>
                 <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>{msgEnvio || "Você confere os dados antes de criar o negócio"}</div>
+                {jaTemDeal && (
+                  <button className="btn block" style={{ boxShadow: "none" }} onClick={() => nav(`/negocio/${dealId}`)}>
+                    <Icon name="funil" size={14} /><span>Ver negócio no funil</span>
+                  </button>
+                )}
               </>)}
             </div>
           </div>
@@ -237,10 +253,13 @@ export default function Reuniao() {
           <div className="card">
             <div className="card-head">
               <div className="card-title"><Icon name="edit" size={15} /><span>Notas</span></div>
-              <button className="btn primary" style={{ padding: "6px 12px" }} onClick={salvarNotasFn} disabled={salvandoNotas}>{salvandoNotas ? "Salvando..." : "Salvar"}</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {msgNotas && <span style={{ fontSize: 12, color: msgNotas === "Salvo" ? "var(--ok)" : "var(--danger)" }}>{msgNotas}</span>}
+                <button className="btn primary" style={{ padding: "6px 12px" }} onClick={salvarNotasFn} disabled={salvandoNotas}>{salvandoNotas ? "Salvando..." : "Salvar"}</button>
+              </div>
             </div>
             <div className="card-body">
-              <textarea className="textarea" style={{ minHeight: 110 }} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Suas anotações sobre esta reunião..." />
+              <textarea className="textarea" style={{ minHeight: 110 }} value={notas} onChange={(e) => { setNotas(e.target.value); if (msgNotas) setMsgNotas(""); }} placeholder="Suas anotações sobre esta reunião..." />
             </div>
           </div>
         </div>

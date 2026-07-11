@@ -44,6 +44,20 @@ export default function NovaReuniao() {
     }
   }, []); // eslint-disable-line
 
+  // Guarda contra perda de trabalho: transcricao colada/anexada e ainda nao gerada.
+  const dirty = estado === "idle" && transcricao.trim().length > 0;
+  useEffect(() => {
+    window.__ataleadDirty = dirty;
+    const h = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", h);
+    return () => { window.removeEventListener("beforeunload", h); window.__ataleadDirty = false; };
+  }, [dirty]);
+  function voltar() {
+    if (dirty && !window.confirm("Você tem uma transcrição que ainda não virou ata. Sair mesmo assim?")) return;
+    window.__ataleadDirty = false;
+    nav(-1);
+  }
+
   const setP = (i, campo, v) => setParticipantes((ps) => ps.map((p, k) => (k === i ? { ...p, [campo]: v } : p)));
   const addP = () => setParticipantes((ps) => [...ps, { nome: "", empresa: "", papel: "", email: "" }]);
   const rmP = (i) => setParticipantes((ps) => ps.filter((_, k) => k !== i));
@@ -93,6 +107,9 @@ export default function NovaReuniao() {
 
   return (
     <div className="screen" style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 820 }}>
+      <button className="btn" style={{ alignSelf: "flex-start", boxShadow: "none" }} onClick={voltar}>
+        <Icon name="arrow" size={15} style={{ transform: "scaleX(-1)" }} /> Voltar
+      </button>
       <div>
         <h1>Nova reunião</h1>
         <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>
@@ -148,8 +165,9 @@ export default function NovaReuniao() {
 
         <div>
           <button className="btn primary" disabled={!podeGerar} onClick={gerar} style={{ opacity: podeGerar ? 1 : 0.55 }}>
-            <Icon name="doc" size={15} /><span>{rotulo}</span>
+            {estado === "idle" ? <Icon name="doc" size={15} /> : <span className="spinner" />}<span>{rotulo}</span>
           </button>
+          {estado === "gerando" && <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 8 }}>A Tess está lendo a transcrição. Isso pode levar até ~1 min, não feche a página.</div>}
         </div>
       </div>
     </div>

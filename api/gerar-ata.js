@@ -36,11 +36,14 @@ export default async function handler(req, res) {
     transcricao,
   ].filter(Boolean).join("\n");
 
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 100000); // corta antes do limite da Vercel
   try {
     const exec = await fetch(`${TESS_BASE}/agents/${agentId}/execute`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ prompt, model, temperature: "0", tools: "no-tools", waitExecution: true }),
+      signal: ctrl.signal,
     });
     const data = await exec.json().catch(() => ({}));
     if (!exec.ok) return res.status(502).json({ erro: "Falha ao executar a Tess", detalhe: data });
@@ -62,6 +65,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ ata, output, creditos: resposta?.credits });
   } catch (e) {
+    if (e.name === "AbortError") return res.status(504).json({ erro: "A Tess demorou demais pra responder. Tente de novo (ou reduza a transcrição)." });
     return res.status(502).json({ erro: "Erro de rede ao chamar a Tess", detalhe: String(e) });
+  } finally {
+    clearTimeout(timer);
   }
 }
