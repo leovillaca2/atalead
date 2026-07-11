@@ -16,113 +16,102 @@ export function fmtValor(n) {
   return "R$ " + Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 }
 
+// Erros de relógio/token: renova a sessão e tenta de novo uma vez.
+function ehErroToken(e) {
+  const m = (e && (e.message || e.msg || e.error_description)) || "";
+  return /jwt|issued at future|token|expired|clock/i.test(String(m));
+}
+
+async function run(build) {
+  let res = await build();
+  if (res.error && ehErroToken(res.error)) {
+    try { await supabase.auth.refreshSession(); } catch { /* segue */ }
+    res = await build();
+  }
+  if (res.error) throw res.error;
+  return res.data;
+}
+
 export async function listarFunil() {
-  const [{ data: prospects, error }, reunioes] = await Promise.all([
-    supabase.from("prospects").select("*").order("created_at", { ascending: false }),
-    supabase.from("reunioes").select("id, prospect_id, data").order("data", { ascending: false }),
+  const [prospects, reunioes] = await Promise.all([
+    run(() => supabase.from("prospects").select("*").order("created_at", { ascending: false })),
+    run(() => supabase.from("reunioes").select("id, prospect_id, data").order("data", { ascending: false })),
   ]);
-  if (error) throw error;
   const ultima = {};
-  (reunioes.data || []).forEach((r) => { if (!ultima[r.prospect_id]) ultima[r.prospect_id] = r; });
+  (reunioes || []).forEach((r) => { if (!ultima[r.prospect_id]) ultima[r.prospect_id] = r; });
   const cards = (prospects || []).map((p) => ({
     ...p,
     ultimaReuniaoId: ultima[p.id] ? ultima[p.id].id : null,
     ultimaData: ultima[p.id] ? ultima[p.id].data : null,
   }));
   return ETAPAS.map((e) => ({
-    etapa: e,
-    nome: ETAPA_LABEL[e],
-    cor: ETAPA_COR[e],
+    etapa: e, nome: ETAPA_LABEL[e], cor: ETAPA_COR[e],
     cards: cards.filter((p) => (p.etapa || "novo") === e),
   }));
 }
 
 export async function listarPassosAbertos() {
-  const { data, error } = await supabase
-    .from("proximos_passos")
-    .select("*, prospects(empresa)")
-    .eq("feito", false)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return data || [];
+  return run(() =>
+    supabase.from("proximos_passos").select("*, prospects(empresa)").eq("feito", false).order("created_at", { ascending: true })
+  ) || [];
 }
 
 export async function getReuniao(id) {
-  const { data: r, error } = await supabase.from("reunioes").select("*, prospects(*)").eq("id", id).single();
-  if (error) throw error;
-  const [parts, atas, passos] = await Promise.all([
-    supabase.from("participantes").select("*").eq("reuniao_id", id),
-    supabase.from("atas").select("*").eq("reuniao_id", id).order("versao", { ascending: false }).limit(1),
-    supabase.from("proximos_passos").select("*").eq("reuniao_id", id).order("created_at", { ascending: true }),
+  const reuniao = await run(() => supabase.from("reunioes").select("*, prospects(*)").eq("id", id).single());
+  const [participantes, atas, passos] = await Promise.all([
+    run(() => supabase.from("participantes").select("*").eq("reuniao_id", id)),
+    run(() => supabase.from("atas").select("*").eq("reuniao_id", id).order("versao", { ascending: false }).limit(1)),
+    run(() => supabase.from("proximos_passos").select("*").eq("reuniao_id", id).order("created_at", { ascending: true })),
   ]);
-  return {
-    reuniao: r,
-    participantes: parts.data || [],
-    ata: (atas.data || [])[0] || null,
-    passos: passos.data || [],
-  };
+  return { reuniao, participantes: participantes || [], ata: (atas || [])[0] || null, passos: passos || [] };
 }
 
 export async function togglePasso(id, feito) {
-  const { error } = await supabase.from("proximos_passos").update({ feito }).eq("id", id);
-  if (error) throw error;
+  await run(() => supabase.from("proximos_passos").update({ feito }).eq("id", id).select());
 }
 
-// Cria prospect + reuniao + participantes + ata + passos a partir do resultado da Tess.
 export async function criarReuniaoCompleta({ titulo, participantes, transcricao, ata }) {
   const lead = (ata && ata.lead) || {};
 
-  const { data: prospect, error: e1 } = await supabase
-    .from("prospects")
-    .insert({
+  const prospect = await run(() =>
+    supabase.from("prospects").insert({
       empresa: lead.empresa || titulo,
       contato: lead.contato || null,
       cargo: lead.cargo || null,
       segmento: lead.segmento || null,
       etapa: (lead.etapa || "novo").toLowerCase(),
       valor_estimado: parseValor(lead.valor),
-    })
-    .select()
-    .single();
-  if (e1) throw e1;
+    }).select().single()
+  );
 
-  const { data: reuniao, error: e2 } = await supabase
-    .from("reunioes")
-    .insert({
-      prospect_id: prospect.id,
-      titulo,
-      transcricao,
-      origem: "colar",
-      status: "ata_gerada",
+  const reuniao = await run(() =>
+    supabase.from("reunioes").insert({
+      prospect_id: prospect.id, titulo, transcricao, origem: "colar", status: "ata_gerada",
       data: new Date().toISOString().slice(0, 10),
-    })
-    .select()
-    .single();
-  if (e2) throw e2;
+    }).select().single()
+  );
 
   const parts = (participantes || []).filter((p) => p && p.nome);
   if (parts.length) {
-    await supabase.from("participantes").insert(
+    await run(() => supabase.from("participantes").insert(
       parts.map((p, i) => ({ reuniao_id: reuniao.id, speaker: `Speaker ${i + 1}`, nome: p.nome, empresa: p.empresa || null, papel: p.papel || null }))
-    );
+    ).select());
   }
 
-  await supabase.from("atas").insert({
+  await run(() => supabase.from("atas").insert({
     reuniao_id: reuniao.id,
     resumo: (ata && ata.resumo) || "",
     decisoes: (ata && ata.decisoes) || [],
     produtos: (ata && ata.produtos) || [],
     lead,
-  });
+  }).select());
 
   const passos = ((ata && ata.proximos_passos) || []).map((t) => ({
-    reuniao_id: reuniao.id,
-    prospect_id: prospect.id,
+    reuniao_id: reuniao.id, prospect_id: prospect.id,
     titulo: typeof t === "string" ? t : t.titulo || "",
-    responsavel: t.responsavel || null,
-    prazo: t.prazo || null,
-  }));
-  if (passos.length) await supabase.from("proximos_passos").insert(passos);
+    responsavel: t.responsavel || null, prazo: t.prazo || null,
+  })).filter((p) => p.titulo);
+  if (passos.length) await run(() => supabase.from("proximos_passos").insert(passos).select());
 
   return reuniao.id;
 }

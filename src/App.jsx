@@ -70,7 +70,11 @@ export default function App() {
 
   useEffect(() => {
     if (!supabase) { setSessao(null); return; }
-    supabase.auth.getSession().then(({ data }) => setSessao(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSessao(data.session);
+      // Renova o token de cara pra evitar "JWT issued at future" por desvio de relogio.
+      if (data.session) supabase.auth.refreshSession().catch(() => {});
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSessao(s));
     return () => sub.subscription.unsubscribe();
   }, []);
