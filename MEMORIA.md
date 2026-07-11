@@ -57,7 +57,13 @@ Pipedrive: em MODO SEGURO (PIPEDRIVE_SAFE_MODE=true no Vercel) — NAO escreve n
 
 Variaveis no Vercel (producao): VITE_SUPABASE_URL/ANON, SUPABASE_URL/SERVICE_ROLE, TESS_API_KEY, PIPEDRIVE_API_TOKEN, PIPEDRIVE_SAFE_MODE=true. Falta TESS_AGENT_ID e EVERNOTE_DEV_TOKEN.
 
-Falta pra fechar 1b/1c: login (auth) + ligar as telas nos dados do Supabase (hoje ainda usam mock.js); definir TESS_AGENT_ID; verificar geracao ponta a ponta; Evernote quando a chave sair. Rodar /api local = `vercel dev`.
+ESTADO 2026-07-11 (funcional e verificado em producao):
+- Login: Supabase Auth email/senha. Usuario augusto.mello@pgmais.com.br (tela aceita "augusto.mello" e completa o dominio). Senha inicial fraca (trocar depois). App todo atras do login.
+- Telas ligadas ao Supabase (nao usam mais mock.js): Funil, Reuniao, Passos leem do banco; NovaReuniao grava.
+- Tess LIGADA E TESTADA em producao: agente 2910 (motor GPT), model gpt-4o, temperature "0" (o campo e select, "0.2" da erro). Retorna ata em JSON (resumo/decisoes/proximos_passos/produtos/lead). Prompt no proprio codigo (api/gerar-ata.js).
+- Fluxo Nova reuniao -> gerarAta (Tess) -> criarReuniaoCompleta (Supabase) -> abre a reuniao. Verificado o endpoint de geracao em prod (HTTP 200, ata estruturada).
+- Pipedrive: MODO SEGURO (PIPEDRIVE_SAFE_MODE=true). O botao "enviar ao Pipedrive" chama a funcao mas ela NAO escreve no CRM (retorna simulado). So cria de verdade quando setar PIPEDRIVE_SAFE_MODE=false.
+- Falta: Evernote (chave no suporte, modo colar cobre); trocar a senha fraca; refinar RLS por dono se virar multiusuario; seed opcional. Rodar /api local = `vercel dev`.
 
 ## Estrutura do codigo
 - index.html, vite.config.js, package.json (Vite + React)
