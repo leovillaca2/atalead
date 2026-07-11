@@ -29,9 +29,15 @@ export function buscarNotaEvernote({ titulo }) {
   return post("/api/evernote-nota", { titulo });
 }
 
-// Le o funil do Pipedrive (negocios agrupados por etapa).
-export function funilPipedrive() {
-  return get("/api/pipedrive-funil");
+// Lista os funis do Pipedrive (pra popular o seletor).
+export function pipelinesPipedrive() {
+  return get("/api/pipedrive-pipelines");
+}
+
+// Le um funil do Pipedrive (negocios agrupados por etapa).
+export function funilPipedrive(pipelineId) {
+  const qs = pipelineId ? `?pipeline=${encodeURIComponent(pipelineId)}` : "";
+  return get("/api/pipedrive-funil" + qs);
 }
 
 // Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.

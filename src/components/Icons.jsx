@@ -16,6 +16,7 @@ const paths = {
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
   clock: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>,
+  upload: <><path d="M12 15V3M7 8l5-5 5 5" /><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></>,
 };
 
 export default function Icon({ name, size = 16, strokeWidth = 2, ...rest }) {

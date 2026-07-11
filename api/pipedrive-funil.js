@@ -1,21 +1,20 @@
 // FUNÇÃO DE SERVIDOR. Leitura do funil do Pipedrive (token protegido no servidor).
-// Le negocios ABERTOS do pipeline configurado e agrupa por etapa. Nao escreve nada.
+// Recebe ?pipeline=ID. Le os negocios ABERTOS desse funil e agrupa por etapa. Nao escreve nada.
 
 export default async function handler(req, res) {
   const token = process.env.PIPEDRIVE_API_TOKEN;
   if (!token) return res.status(500).json({ erro: "PIPEDRIVE_API_TOKEN não configurado" });
-  const pipelineId = process.env.PIPEDRIVE_PIPELINE_ID || "25";
+  const pipelineId = (req.query && req.query.pipeline) || process.env.PIPEDRIVE_PIPELINE_ID || "1";
 
   const base = "https://api.pipedrive.com/v1";
   const q = `api_token=${encodeURIComponent(token)}`;
   try {
     const [stagesR, dealsR] = await Promise.all([
       fetch(`${base}/stages?pipeline_id=${pipelineId}&${q}`),
-      fetch(`${base}/deals?stage_id=&status=open&limit=200&${q}`),
+      fetch(`${base}/pipelines/${pipelineId}/deals?status=open&limit=500&${q}`),
     ]);
     const stages = ((await stagesR.json()).data || []).sort((a, b) => a.order_nr - b.order_nr);
-    const dealsAll = (await dealsR.json()).data || [];
-    const deals = dealsAll.filter((d) => d.pipeline_id === Number(pipelineId));
+    const deals = (await dealsR.json()).data || [];
 
     const colunas = stages.map((s) => ({
       id: s.id,
@@ -31,7 +30,7 @@ export default async function handler(req, res) {
           moeda: d.currency || "BRL",
         })),
     }));
-    return res.status(200).json({ pipelineId, colunas });
+    return res.status(200).json({ pipelineId: String(pipelineId), colunas });
   } catch (e) {
     return res.status(502).json({ erro: "Erro ao ler o Pipedrive", detalhe: String(e) });
   }

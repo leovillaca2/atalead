@@ -25,7 +25,10 @@ function Sidebar({ email }) {
     { to: "/nova", name: "Nova reunião", icon: "reunioes", match: (p) => p.startsWith("/reuniao") || p === "/nova" },
     { to: "/passos", name: "Próximos passos", icon: "passos", match: (p) => p === "/passos" },
   ];
-  const iniciais = (email || "?").slice(0, 2).toUpperCase();
+  const nome = email
+    ? email.split("@")[0].split(/[._-]/).filter(Boolean).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ")
+    : "Usuário";
+  const iniciais = nome.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -43,7 +46,7 @@ function Sidebar({ email }) {
       <button className="navitem" onClick={() => supabase?.auth.signOut()}><Icon name="team" size={17} /><span>Sair</span></button>
       <div className="side-foot">
         <div className="av">{iniciais}</div>
-        <div className="who"><b>{email || "Usuário"}</b><small>PGMais</small></div>
+        <div className="who"><b>{nome}</b><small>PGMais</small></div>
       </div>
     </aside>
   );

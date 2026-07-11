@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import { gerarAta } from "../lib/api.js";
 import { criarReuniaoCompleta } from "../lib/db.js";
+import { extrairTexto } from "../lib/extrair.js";
 
 export default function NovaReuniao() {
   const nav = useNavigate();
@@ -11,17 +12,36 @@ export default function NovaReuniao() {
   const [participantes, setParticipantes] = useState([{ nome: "", empresa: "", papel: "" }]);
   const [estado, setEstado] = useState("idle"); // idle | gerando | salvando
   const [erro, setErro] = useState("");
+  const [arquivo, setArquivo] = useState("");
+  const [lendo, setLendo] = useState(false);
 
   const setP = (i, campo, v) => setParticipantes((ps) => ps.map((p, k) => (k === i ? { ...p, [campo]: v } : p)));
   const addP = () => setParticipantes((ps) => [...ps, { nome: "", empresa: "", papel: "" }]);
   const rmP = (i) => setParticipantes((ps) => ps.filter((_, k) => k !== i));
+
+  async function onArquivo(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ""; // permite reanexar o mesmo arquivo
+    if (!file) return;
+    setErro(""); setLendo(true);
+    try {
+      const texto = await extrairTexto(file);
+      if (!texto) throw new Error("Não consegui ler texto desse arquivo.");
+      setTranscricao((prev) => (prev.trim() ? prev.trim() + "\n\n" + texto : texto));
+      setArquivo(file.name);
+      if (!titulo.trim()) setTitulo(file.name.replace(/\.[^.]+$/, ""));
+    } catch (err) {
+      setErro(err.message || "Falha ao ler o arquivo.");
+    } finally {
+      setLendo(false);
+    }
+  }
 
   async function gerar() {
     setErro("");
     setEstado("gerando");
     try {
       const r = await gerarAta({ transcricao, participantes });
-      // r.ata = JSON estruturado; se a IA nao devolveu JSON, cai no texto cru como resumo.
       const ata = r.ata || { resumo: r.output || "", decisoes: [], proximos_passos: [], produtos: [], lead: { empresa: titulo } };
       if (!ata.lead) ata.lead = { empresa: titulo };
       setEstado("salvando");
@@ -40,7 +60,7 @@ export default function NovaReuniao() {
     <div className="screen" style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 820 }}>
       <div>
         <h1>Nova reunião</h1>
-        <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>Cole a transcrição e a Tess gera a ata executiva e o lead</div>
+        <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>Anexe um arquivo ou cole o texto e a Tess gera a ata executiva e o lead</div>
       </div>
 
       <div className="card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -66,18 +86,23 @@ export default function NovaReuniao() {
 
         <div className="field">
           <label>Transcrição</label>
-          <textarea className="textarea" value={transcricao} onChange={(e) => setTranscricao(e.target.value)} placeholder="Cole aqui a transcrição copiada do Evernote..." />
-          <div style={{ fontSize: 12, color: "var(--text3)" }}>Em breve: puxar direto da nota do Evernote pela API (a chave fica no servidor).</div>
+
+          {/* Anexar arquivo (lido no navegador) */}
+          <label className="dropzone">
+            <input type="file" accept=".pdf,.docx,.txt,text/plain,application/pdf" onChange={onArquivo} hidden />
+            <Icon name="upload" size={18} />
+            <span>{lendo ? "Lendo arquivo..." : arquivo ? `Anexado: ${arquivo} (clique para trocar)` : "Anexar PDF, Word (.docx) ou TXT"}</span>
+          </label>
+
+          <textarea className="textarea" value={transcricao} onChange={(e) => setTranscricao(e.target.value)} placeholder="Ou cole aqui a transcrição / suas notas..." />
+          <div style={{ fontSize: 12, color: "var(--text3)" }}>O arquivo é lido aqui no seu navegador. Só o texto vai pra Tess.</div>
         </div>
 
         {erro && <div style={{ fontSize: 13, color: "var(--danger)", background: "var(--danger-soft)", padding: "10px 12px", borderRadius: 9 }}>{erro}</div>}
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div>
           <button className="btn primary" disabled={!podeGerar} onClick={gerar} style={{ opacity: podeGerar ? 1 : 0.55 }}>
             <Icon name="doc" size={15} /><span>{rotulo}</span>
-          </button>
-          <button className="btn" disabled title="Disponível quando a chave do Evernote for liberada">
-            <Icon name="mic" size={15} /><span>Puxar do Evernote</span>
           </button>
         </div>
       </div>
