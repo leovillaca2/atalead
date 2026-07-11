@@ -6,6 +6,7 @@ import Reuniao from "./screens/Reuniao.jsx";
 import Passos from "./screens/Passos.jsx";
 import NovaReuniao from "./screens/NovaReuniao.jsx";
 import Historico from "./screens/Historico.jsx";
+import Calendario from "./screens/Calendario.jsx";
 import Login from "./screens/Login.jsx";
 import { supabase } from "./lib/supabase.js";
 
@@ -24,6 +25,7 @@ function Sidebar({ email }) {
   const items = [
     { to: "/", name: "Funil", icon: "funil", match: (p) => p === "/" },
     { to: "/reunioes", name: "Reuniões", icon: "reunioes", match: (p) => p.startsWith("/reuni") },
+    { to: "/calendario", name: "Calendário", icon: "calendar", match: (p) => p === "/calendario" },
     { to: "/passos", name: "Próximos passos", icon: "passos", match: (p) => p === "/passos" },
   ];
   const nome = email
@@ -56,7 +58,7 @@ function Sidebar({ email }) {
 function TopBar({ tema, toggleTema }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const titulo = pathname === "/reunioes" ? "Reuniões" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Funil";
+  const titulo = pathname === "/reunioes" ? "Reuniões" : pathname === "/calendario" ? "Calendário" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Funil";
   return (
     <div className="topbar">
       <div className="crumbs"><span className="cur">{titulo}</span></div>
@@ -98,6 +100,7 @@ export default function App() {
           <Route path="/" element={<Funil />} />
           <Route path="/reuniao/:id" element={<Reuniao />} />
           <Route path="/reunioes" element={<Historico />} />
+          <Route path="/calendario" element={<Calendario />} />
           <Route path="/passos" element={<Passos />} />
           <Route path="/nova" element={<NovaReuniao />} />
           <Route path="*" element={<Navigate to="/" replace />} />

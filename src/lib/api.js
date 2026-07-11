@@ -1,5 +1,12 @@
+import { supabase } from "./supabase.js";
+
 // Cliente que fala com as funcoes de servidor (/api).
-// As chaves da Tess, Evernote e Pipedrive vivem SO no servidor.
+// As chaves da Tess, Evernote, Pipedrive e Google vivem SO no servidor.
+
+async function bearer() {
+  const { data } = await supabase.auth.getSession();
+  return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+}
 
 async function post(path, body) {
   const res = await fetch(path, {
@@ -48,4 +55,18 @@ export function stagesPipedrive(pipelineId) {
 // Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.
 export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId }) {
   return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId });
+}
+
+// Google Calendar: URL pra iniciar a conexao (leva o token do usuario no query).
+export async function googleConectarUrl() {
+  const { data } = await supabase.auth.getSession();
+  return "/api/google/auth?token=" + encodeURIComponent((data.session && data.session.access_token) || "");
+}
+
+// Le os proximos eventos do Google Calendar do usuario.
+export async function googleEventos() {
+  const res = await fetch("/api/google/eventos", { headers: await bearer() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erro || "Falha ao ler o calendário");
+  return data;
 }

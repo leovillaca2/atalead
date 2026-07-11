@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import { gerarAta } from "../lib/api.js";
 import { criarReuniaoCompleta } from "../lib/db.js";
@@ -7,6 +7,7 @@ import { extrairTexto } from "../lib/extrair.js";
 
 export default function NovaReuniao() {
   const nav = useNavigate();
+  const loc = useLocation();
   const [titulo, setTitulo] = useState("");
   const [transcricao, setTranscricao] = useState("");
   const [participantes, setParticipantes] = useState([{ nome: "", empresa: "", papel: "" }]);
@@ -14,6 +15,16 @@ export default function NovaReuniao() {
   const [erro, setErro] = useState("");
   const [arquivo, setArquivo] = useState("");
   const [lendo, setLendo] = useState(false);
+
+  // Pre-preenche a partir de um evento do Google Calendar (vindo da tela Calendário).
+  useEffect(() => {
+    const ev = loc.state && loc.state.evento;
+    if (!ev) return;
+    if (ev.titulo) setTitulo(ev.titulo);
+    if (ev.participantes && ev.participantes.length) {
+      setParticipantes(ev.participantes.map((p) => ({ nome: p.nome || "", empresa: p.empresa || "", papel: "" })));
+    }
+  }, []); // eslint-disable-line
 
   const setP = (i, campo, v) => setParticipantes((ps) => ps.map((p, k) => (k === i ? { ...p, [campo]: v } : p)));
   const addP = () => setParticipantes((ps) => [...ps, { nome: "", empresa: "", papel: "" }]);
