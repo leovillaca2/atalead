@@ -16,7 +16,14 @@ export default async function handler(req, res) {
     ]);
     const stages = ((await stagesR.json()).data || []).sort((a, b) => a.order_nr - b.order_nr);
     let deals = (await dealsR.json()).data || [];
-    if (owner) deals = deals.filter((d) => d.user_id && String(d.user_id.id) === String(owner));
+    if (owner) {
+      const donoDe = (d) => {
+        const u = d.user_id;
+        if (u == null) return null;
+        return typeof u === "object" ? (u.value != null ? u.value : u.id) : u;
+      };
+      deals = deals.filter((d) => String(donoDe(d)) === String(owner));
+    }
 
     const colunas = stages.map((s) => ({
       id: s.id,
