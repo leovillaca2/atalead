@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
-import { dealPipedrive, adicionarNotaPipedrive } from "../lib/api.js";
+import { dealPipedrive, adicionarNotaPipedrive, labelsPipedrive, setLabelPipedrive } from "../lib/api.js";
 import { fmtValor } from "../lib/db.js";
 
 const fmtData = (s) => (s && s.length >= 10 ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : s || "");
+const CORES = { green: "#15803D", red: "#B4231C", yellow: "#B45309", purple: "#7C3AED", blue: "#1D5FD1", gray: "#7E9196", "dark-gray": "#4B5563", orange: "#C2410C", pink: "#DB2777", "light-blue": "#0EA5E9" };
 
 export default function Negocio() {
   const { id } = useParams();
@@ -18,9 +19,26 @@ export default function Negocio() {
   const [salvandoNota, setSalvandoNota] = useState(false);
   const [msgNota, setMsgNota] = useState("");
 
+  const [labels, setLabels] = useState([]);
+  const [tempSel, setTempSel] = useState("");
+  const [salvandoTemp, setSalvandoTemp] = useState(false);
+  const [msgTemp, setMsgTemp] = useState("");
+
   useEffect(() => {
-    dealPipedrive(id).then(setD).catch((e) => setErro(e.message || "Erro"));
+    dealPipedrive(id).then((x) => { setD(x); setTempSel(x.label != null ? String(x.label) : ""); }).catch((e) => setErro(e.message || "Erro"));
+    labelsPipedrive().then((r) => setLabels(r.labels || [])).catch(() => {});
   }, [id]);
+
+  async function mudarTemp(v) {
+    const anterior = tempSel;
+    setTempSel(v); setSalvandoTemp(true); setMsgTemp("");
+    try {
+      const r = await setLabelPipedrive({ dealId: id, labelId: v || null });
+      setMsgTemp(r.simulado ? "Modo seguro: não gravou" : "Atualizado no Pipedrive");
+    } catch (e) {
+      setTempSel(anterior); setMsgTemp(e.message || "Falha ao mudar");
+    } finally { setSalvandoTemp(false); }
+  }
 
   async function addNota() {
     if (!novaNota.trim()) return;
@@ -68,6 +86,19 @@ export default function Negocio() {
             <div className="col-main card">
               <div className="card-head"><div className="card-title"><Icon name="target" size={16} /><span>Dados do lead</span></div></div>
               <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {labels.length > 0 && (
+                  <div className="kv" style={{ alignItems: "center" }}>
+                    <span className="k">Temperatura</span>
+                    <span className="v" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {(() => { const l = labels.find((x) => String(x.id) === tempSel); const c = l && l.cor ? (CORES[l.cor] || null) : null; return c ? <span style={{ width: 10, height: 10, borderRadius: "50%", background: c, flexShrink: 0 }} /> : null; })()}
+                      <select className="input" style={{ padding: "6px 10px", cursor: "pointer", width: "auto" }} value={tempSel} onChange={(e) => mudarTemp(e.target.value)} disabled={salvandoTemp}>
+                        <option value="">Sem temperatura</option>
+                        {labels.map((l) => <option key={l.id} value={String(l.id)}>{l.nome}</option>)}
+                      </select>
+                      {msgTemp && <span style={{ fontSize: 11.5, color: msgTemp.startsWith("Atualizado") ? "var(--ok)" : "var(--text3)" }}>{msgTemp}</span>}
+                    </span>
+                  </div>
+                )}
                 {d.org && <div className="kv"><span className="k">Empresa</span><span className="v">{d.org}</span></div>}
                 {d.pessoa?.nome && <div className="kv"><span className="k">Contato</span><span className="v">{d.pessoa.nome}</span></div>}
                 {d.pessoa?.email && <div className="kv"><span className="k">E-mail</span><span className="v">{d.pessoa.email}</span></div>}

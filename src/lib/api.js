@@ -52,12 +52,17 @@ export function buscarNotaEvernote({ titulo }) {
 
 // Lista os funis do Pipedrive (pra popular o seletor).
 export function pipelinesPipedrive() {
-  return get("/api/pipedrive-pipelines");
+  return get("/api/pipedrive-meta?tipo=pipelines");
 }
 
 // Lista os usuarios (donos) do Pipedrive (pro filtro de dono).
 export function usersPipedrive() {
-  return get("/api/pipedrive-users");
+  return get("/api/pipedrive-meta?tipo=users");
+}
+
+// Lista as opcoes de temperatura (campo Label do negocio: Quente/Morno/Frio...).
+export function labelsPipedrive() {
+  return get("/api/pipedrive-meta?tipo=labels");
 }
 
 // Detalhe completo de um negocio do Pipedrive (exige login).
@@ -79,12 +84,17 @@ export function funilPipedrive(pipelineId, owner) {
 
 // Lista as etapas de um funil (pra escolher onde entra o negocio).
 export function stagesPipedrive(pipelineId) {
-  return get(`/api/pipedrive-stages?pipeline=${encodeURIComponent(pipelineId)}`);
+  return get(`/api/pipedrive-meta?tipo=stages&pipeline=${encodeURIComponent(pipelineId)}`);
 }
 
 // Adiciona uma nota a um negocio no Pipedrive (escrita).
 export function adicionarNotaPipedrive({ dealId, conteudo }) {
-  return post("/api/pipedrive-nota", { dealId, conteudo });
+  return post("/api/pipedrive-acao", { action: "nota", dealId, conteudo });
+}
+
+// Muda a temperatura (Label) do negocio no Pipedrive.
+export function setLabelPipedrive({ dealId, labelId }) {
+  return post("/api/pipedrive-acao", { action: "label", dealId, labelId });
 }
 
 // Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.

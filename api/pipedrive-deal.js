@@ -55,6 +55,7 @@ export default async function handler(req, res) {
       dono: (deal.user_id && deal.user_id.name) || null,
       criado: (deal.add_time || "").slice(0, 10),
       atualizado: (deal.update_time || "").slice(0, 10),
+      label: deal.label ?? null, // temperatura atual (id da opcao do campo Label)
       pessoa,
       proximas: proximas.slice(0, 8).map(mapA),
       proximasTotal: proximas.length,
