@@ -62,7 +62,11 @@ ESTADO 2026-07-11 (funcional e verificado em producao):
 - Telas ligadas ao Supabase (nao usam mais mock.js): Funil, Reuniao, Passos leem do banco; NovaReuniao grava.
 - Tess LIGADA E TESTADA em producao: agente 2910 (motor GPT), model gpt-4o, temperature "0" (o campo e select, "0.2" da erro). Retorna ata em JSON (resumo/decisoes/proximos_passos/produtos/lead). Prompt no proprio codigo (api/gerar-ata.js).
 - Fluxo Nova reuniao -> gerarAta (Tess) -> criarReuniaoCompleta (Supabase) -> abre a reuniao. Verificado o endpoint de geracao em prod (HTTP 200, ata estruturada).
-- Pipedrive: MODO SEGURO (PIPEDRIVE_SAFE_MODE=true). O botao "enviar ao Pipedrive" chama a funcao mas ela NAO escreve no CRM (retorna simulado). So cria de verdade quando setar PIPEDRIVE_SAFE_MODE=false.
+- Pipedrive: DECIDIDO usar como CRM unico (nao fazer CRM proprio). Funil escolhido: "AUGUSTO | PROSPECAO CORTEX" (pipeline_id 25; etapas Ativacao/Qualificacao/Agenda/Hunter/Perda). PIPEDRIVE_PIPELINE_ID=25 no Vercel.
+  - Aba Funil do AtaLead LE do Pipedrive (/api/pipedrive-funil, so leitura). Verificado em prod.
+  - /api/enviar-pipedrive faz criar OU atualizar negocio, com CHECK DE CONFLITO por update_time: se o negocio mudou no Pipedrive depois da ultima sync, devolve {conflito:true} e o front abre um MODAL (componente Modal.jsx, nao o confirm do navegador) com "Sobrescrever" ou "Cancelar". Botao "Atualizar no Pipedrive" na tela da reuniao.
+  - Vinculo guardado em reunioes: pipedrive_deal_id/org_id/person_id/update_time/synced_at (migration 20260711000001).
+  - AINDA EM MODO SEGURO (PIPEDRIVE_SAFE_MODE=true): a leitura de conflito roda, mas NADA e escrito. Pra ativar de verdade: setar PIPEDRIVE_SAFE_MODE=false no Vercel (e opcional PIPEDRIVE_STAGE_ID pra etapa de entrada). Arquitetura: mao unica AtaLead->Pipedrive (escrita por clique) e Pipedrive->AtaLead (leitura). SEM sync bidirecional.
 - Falta: Evernote (chave no suporte, modo colar cobre); trocar a senha fraca; refinar RLS por dono se virar multiusuario; seed opcional. Rodar /api local = `vercel dev`.
 
 ## Estrutura do codigo
