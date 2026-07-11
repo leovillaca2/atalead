@@ -78,3 +78,15 @@ export async function googleEventos() {
   if (!res.ok) throw new Error(data.erro || "Falha ao ler o calendário");
   return data;
 }
+
+// Cria um evento no Google Calendar (escreve na agenda).
+export async function criarEventoGoogle(dados) {
+  const res = await fetch("/api/google/criar-evento", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await bearer()) },
+    body: JSON.stringify(dados),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erro || "Falha ao criar evento");
+  return data;
+}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
-import { googleEventos, googleConectarUrl } from "../lib/api.js";
+import Modal from "../components/Modal.jsx";
+import { googleEventos, googleConectarUrl, criarEventoGoogle } from "../lib/api.js";
 
 function fmtData(iso) {
   if (!iso) return "";
@@ -13,24 +14,60 @@ function fmtData(iso) {
   });
 }
 
+function pad(n) { return String(n).padStart(2, "0"); }
+function localMaisMin(localStr, min) {
+  const d = new Date(localStr);
+  d.setMinutes(d.getMinutes() + Number(min));
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+}
+
 export default function Calendario() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
-  const [estado, setEstado] = useState("carregando"); // carregando | desconectado | ok
+  const [estado, setEstado] = useState("carregando");
   const [eventos, setEventos] = useState([]);
   const [erro, setErro] = useState(sp.get("erro") ? "Não consegui conectar (" + sp.get("erro") + "). Tente de novo." : "");
 
-  useEffect(() => {
-    googleEventos()
+  const [form, setForm] = useState(false);
+  const [fTitulo, setFTitulo] = useState("");
+  const [fData, setFData] = useState("");
+  const [fDur, setFDur] = useState("30");
+  const [fPart, setFPart] = useState("");
+  const [fLocal, setFLocal] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erroForm, setErroForm] = useState("");
+
+  function carregar() {
+    return googleEventos()
       .then((d) => {
         if (!d.conectado) { setEstado("desconectado"); if (d.erro) setErro("Reconecte sua conta Google."); }
-        else { setEventos(d.eventos || []); setEstado("ok"); if (d.erro) setErro(d.erro); }
+        else { setEventos(d.eventos || []); setEstado("ok"); }
       })
       .catch((e) => { setErro(e.message || "Erro"); setEstado("desconectado"); });
-  }, []);
+  }
+  useEffect(() => { carregar(); }, []);
 
-  async function conectar() {
-    window.location.href = await googleConectarUrl();
+  async function conectar() { window.location.href = await googleConectarUrl(); }
+
+  async function agendar() {
+    setErroForm("");
+    if (!fTitulo.trim() || !fData) { setErroForm("Preencha título e início."); return; }
+    setSalvando(true);
+    try {
+      const participantes = fPart.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+      await criarEventoGoogle({
+        titulo: fTitulo,
+        inicio: fData + ":00",
+        fim: localMaisMin(fData, fDur),
+        participantes,
+        local: fLocal || undefined,
+      });
+      setForm(false);
+      setFTitulo(""); setFData(""); setFDur("30"); setFPart(""); setFLocal("");
+      await carregar();
+    } catch (e) {
+      setErroForm(e.message || "Falha ao agendar.");
+    } finally { setSalvando(false); }
   }
 
   if (estado === "carregando") return <div className="screen" style={{ color: "var(--text3)" }}>Carregando…</div>;
@@ -42,7 +79,10 @@ export default function Calendario() {
           <h1>Calendário</h1>
           <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>Suas reuniões do Google Calendar</div>
         </div>
-        {estado === "ok" && <button className="btn" onClick={conectar} title="Reconectar"><Icon name="calendar" size={15} /><span>Reconectar</span></button>}
+        <div style={{ display: "flex", gap: 8 }}>
+          {estado === "ok" && <button className="btn primary" onClick={() => setForm(true)}><Icon name="plus" size={15} strokeWidth={2.2} /><span>Agendar reunião</span></button>}
+          {estado === "ok" && <button className="btn" onClick={conectar} title="Reconectar"><Icon name="calendar" size={15} /></button>}
+        </div>
       </div>
 
       {erro && <div style={{ fontSize: 13, color: "var(--danger)", background: "var(--danger-soft)", padding: "10px 12px", borderRadius: 9 }}>{erro}</div>}
@@ -53,13 +93,13 @@ export default function Calendario() {
             <Icon name="calendar" size={24} />
           </div>
           <div style={{ fontSize: 14.5, color: "var(--text2)", maxWidth: 420 }}>
-            Conecte seu Google Calendar pra puxar as reuniões (título, participantes, e-mails, data e hora) e gerar a ata a partir delas.
+            Conecte seu Google Calendar pra ver e agendar reuniões aqui, e gerar a ata a partir delas.
           </div>
           <button className="btn primary" onClick={conectar}><Icon name="calendar" size={15} /><span>Conectar Google Calendar</span></button>
         </div>
       ) : (
         <div className="card" style={{ overflow: "hidden" }}>
-          {eventos.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--text3)", fontSize: 13 }}>Nenhuma reunião nos próximos dias.</div>}
+          {eventos.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--text3)", fontSize: 13 }}>Nenhuma reunião nos próximos dias. Clique em "Agendar reunião" pra criar uma.</div>}
           {eventos.map((ev) => (
             <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 18px", borderBottom: "1px solid var(--border)" }}>
               <div style={{ width: 40, height: 40, borderRadius: 9, background: "var(--surface2)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
@@ -76,6 +116,31 @@ export default function Calendario() {
           ))}
         </div>
       )}
+
+      <Modal
+        open={form}
+        title="Agendar reunião"
+        onClose={() => setForm(false)}
+        footer={<>
+          <button className="btn" onClick={() => setForm(false)}>Cancelar</button>
+          <button className="btn primary" onClick={agendar} disabled={salvando}>{salvando ? "Agendando..." : "Agendar no Google"}</button>
+        </>}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="field"><label>Título</label><input className="input" value={fTitulo} onChange={(e) => setFTitulo(e.target.value)} placeholder="Reunião de prospecção — Empresa" /></div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div className="field" style={{ flex: 2 }}><label>Início</label><input className="input" type="datetime-local" value={fData} onChange={(e) => setFData(e.target.value)} /></div>
+            <div className="field" style={{ flex: 1 }}><label>Duração</label>
+              <select className="input" value={fDur} onChange={(e) => setFDur(e.target.value)}>
+                <option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hora</option><option value="90">1h30</option>
+              </select>
+            </div>
+          </div>
+          <div className="field"><label>Participantes (e-mails, separados por vírgula)</label><textarea className="textarea" style={{ minHeight: 70 }} value={fPart} onChange={(e) => setFPart(e.target.value)} placeholder="fulano@empresa.com, ciclano@empresa.com" /></div>
+          <div className="field"><label>Local / link (opcional)</label><input className="input" value={fLocal} onChange={(e) => setFLocal(e.target.value)} placeholder="Google Meet, sala, endereço..." /></div>
+          {erroForm && <div style={{ fontSize: 13, color: "var(--danger)" }}>{erroForm}</div>}
+        </div>
+      </Modal>
     </div>
   );
 }
