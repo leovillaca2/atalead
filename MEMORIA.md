@@ -47,7 +47,17 @@ Fase 0 completa e Fase 1a PRONTA e rodando (`npm run dev`, porta 5173).
 App React (Vite) + React Router com as 4 telas do design (Funil, Reuniao, Proximos passos, Nova reuniao), tema claro/escuro, dados de exemplo em src/lib/mock.js. Build passa limpo.
 Design importado do Claude Design (projeto "AtaLead: UI em React", id 8b1b7e8f-cbf3-477c-9142-c6f38fc92b29) via MCP DesignSync.
 Seguranca: chamadas a Tess/Evernote/Pipedrive isoladas em funcoes de servidor na pasta /api (leem process.env; nunca vao ao navegador). Cliente so usa VITE_SUPABASE_ANON_KEY.
-Falta: Fase 1b (tabelas no Supabase + dados reais), Fase 1c (ligar de verdade Tess e Pipedrive nas funcoes /api; Evernote quando a chave sair). Rodar /api local exige `vercel dev`.
+PUBLICADO em producao: https://atalead.vercel.app (Vercel projeto leovillacamellos-projects/atalead). Deploy pela CLI (o GitHub e da conta leovillaca2 e a Vercel da leovillacamello, entao o conector automatico GitHub->Vercel nao liga; publicamos com `vercel --prod`). SPA fallback em vercel.json.
+
+Tess: base REAL da API = https://tess.pareto.io/api (o api.tess.im e so o site de docs). Auth Bearer OK (/me = Augusto Mello, augusto.mello@pgmais.com.br). Geracao e por POST /agents/{id}/execute (waitExecution). FALTA definir TESS_AGENT_ID (qual agente de ata usar) pra completar a geracao. chat/completions e GET only (nao serve pra gerar).
+
+Supabase: schema aplicado via CLI (migration 20260710000001), 5 tabelas + RLS ligado, policies para authenticated. Aplicado por CLI porque o MCP do Supabase esta em modo somente-leitura.
+
+Pipedrive: em MODO SEGURO (PIPEDRIVE_SAFE_MODE=true no Vercel) — NAO escreve no CRM real. So cria de verdade quando setar PIPEDRIVE_SAFE_MODE=false.
+
+Variaveis no Vercel (producao): VITE_SUPABASE_URL/ANON, SUPABASE_URL/SERVICE_ROLE, TESS_API_KEY, PIPEDRIVE_API_TOKEN, PIPEDRIVE_SAFE_MODE=true. Falta TESS_AGENT_ID e EVERNOTE_DEV_TOKEN.
+
+Falta pra fechar 1b/1c: login (auth) + ligar as telas nos dados do Supabase (hoje ainda usam mock.js); definir TESS_AGENT_ID; verificar geracao ponta a ponta; Evernote quando a chave sair. Rodar /api local = `vercel dev`.
 
 ## Estrutura do codigo
 - index.html, vite.config.js, package.json (Vite + React)

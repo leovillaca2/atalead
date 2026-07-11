@@ -10,6 +10,17 @@ export default async function handler(req, res) {
   const { lead } = req.body || {};
   if (!lead || !lead.empresa) return res.status(400).json({ erro: "Lead sem empresa" });
 
+  // MODO SEGURO (ligado por padrão): NÃO escreve nada no Pipedrive real.
+  // Só cria de verdade quando PIPEDRIVE_SAFE_MODE for explicitamente "false".
+  const safeMode = process.env.PIPEDRIVE_SAFE_MODE !== "false";
+  if (safeMode) {
+    return res.status(200).json({
+      ok: true,
+      simulado: true,
+      mensagem: "Modo seguro ativo: nada foi criado no Pipedrive real.",
+    });
+  }
+
   const base = "https://api.pipedrive.com/v1";
   const q = `api_token=${encodeURIComponent(token)}`;
 
