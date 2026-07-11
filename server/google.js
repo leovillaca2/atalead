@@ -14,6 +14,12 @@ export async function userFromToken(token) {
   return (data && data.user) || null;
 }
 
+// Exige que a requisicao venha de um usuario logado no AtaLead (token no header).
+export async function exigirLogin(req) {
+  const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  return userFromToken(token);
+}
+
 export async function refreshAccessToken(refreshToken) {
   const body = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,

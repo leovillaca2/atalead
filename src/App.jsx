@@ -45,7 +45,6 @@ function Sidebar({ email }) {
         </button>
       ))}
       <div className="nav-label mt">SISTEMA</div>
-      <button className="navitem"><Icon name="settings" size={17} /><span>Integrações</span></button>
       <button className="navitem" onClick={() => supabase?.auth.signOut()}><Icon name="team" size={17} /><span>Sair</span></button>
       <div className="side-foot">
         <div className="av">{iniciais}</div>

@@ -1,7 +1,10 @@
 // FUNÇÃO DE SERVIDOR. Leitura do funil do Pipedrive (token protegido no servidor).
 // Recebe ?pipeline=ID. Le os negocios ABERTOS desse funil e agrupa por etapa. Nao escreve nada.
 
+import { exigirLogin } from "../server/google.js";
+
 export default async function handler(req, res) {
+  if (!(await exigirLogin(req))) return res.status(401).json({ erro: "não autenticado" });
   const token = process.env.PIPEDRIVE_API_TOKEN;
   if (!token) return res.status(500).json({ erro: "PIPEDRIVE_API_TOKEN não configurado" });
   const pipelineId = (req.query && req.query.pipeline) || process.env.PIPEDRIVE_PIPELINE_ID || "1";

@@ -1,5 +1,8 @@
 // FUNÇÃO DE SERVIDOR. Lista as etapas de um funil do Pipedrive (só leitura).
+import { exigirLogin } from "../server/google.js";
+
 export default async function handler(req, res) {
+  if (!(await exigirLogin(req))) return res.status(401).json({ erro: "não autenticado" });
   const token = process.env.PIPEDRIVE_API_TOKEN;
   if (!token) return res.status(500).json({ erro: "PIPEDRIVE_API_TOKEN não configurado" });
   const pipeline = (req.query && req.query.pipeline) || "1";

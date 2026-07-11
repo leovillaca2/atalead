@@ -12,8 +12,11 @@ function parseValor(v) {
   return isNaN(f) ? null : f;
 }
 
+import { exigirLogin } from "../server/google.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ erro: "Método não permitido" });
+  if (!(await exigirLogin(req))) return res.status(401).json({ erro: "não autenticado" });
   const token = process.env.PIPEDRIVE_API_TOKEN;
   if (!token) return res.status(500).json({ erro: "PIPEDRIVE_API_TOKEN não configurado" });
 

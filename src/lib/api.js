@@ -11,7 +11,7 @@ async function bearer() {
 async function post(path, body) {
   const res = await fetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await bearer()) },
     body: JSON.stringify(body || {}),
   });
   const data = await res.json().catch(() => ({}));
@@ -20,7 +20,7 @@ async function post(path, body) {
 }
 
 async function get(path) {
-  const res = await fetch(path);
+  const res = await fetch(path, { headers: await bearer() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.erro || `Falha em ${path}`);
   return data;
@@ -44,6 +44,14 @@ export function pipelinesPipedrive() {
 // Lista os usuarios (donos) do Pipedrive (pro filtro de dono).
 export function usersPipedrive() {
   return get("/api/pipedrive-users");
+}
+
+// Detalhe completo de um negocio do Pipedrive (exige login).
+export async function dealPipedrive(id) {
+  const res = await fetch("/api/pipedrive-deal?id=" + encodeURIComponent(id), { headers: await bearer() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erro || "Falha ao ler o negócio");
+  return data;
 }
 
 // Le um funil do Pipedrive (negocios agrupados por etapa), com filtro opcional de dono.

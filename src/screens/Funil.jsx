@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { pipelinesPipedrive, funilPipedrive, usersPipedrive } from "../lib/api.js";
+import Modal from "../components/Modal.jsx";
+import { pipelinesPipedrive, funilPipedrive, usersPipedrive, dealPipedrive } from "../lib/api.js";
 import { fmtValor } from "../lib/db.js";
 
 const SAVE_PIPE = "atalead-funil-pipeline";
@@ -15,6 +16,17 @@ export default function Funil() {
   const [ownerId, setOwnerId] = useState(localStorage.getItem(SAVE_OWNER) ?? DEFAULT_OWNER);
   const [colunas, setColunas] = useState(null);
   const [erro, setErro] = useState("");
+  const [detalhe, setDetalhe] = useState(null);
+
+  async function abrirDeal(card, etapa) {
+    setDetalhe({ carregando: true, etapa, titulo: card.titulo });
+    try {
+      const d = await dealPipedrive(card.id);
+      setDetalhe({ carregando: false, dado: d, etapa });
+    } catch (e) {
+      setDetalhe({ carregando: false, erro: e.message || "Erro", etapa });
+    }
+  }
 
   useEffect(() => {
     pipelinesPipedrive().then((d) => setFunis(d.funis || [])).catch((e) => setErro(e.message || "Erro"));
@@ -71,7 +83,7 @@ export default function Funil() {
               </div>
               <div className="kcol-cards">
                 {col.cards.slice(0, MAX_CARDS).map((c) => (
-                  <div className="kcard" key={c.id} style={{ cursor: "default" }}>
+                  <div className="kcard" key={c.id} onClick={() => abrirDeal(c, col.nome)}>
                     <div className="emp">{c.titulo}</div>
                     {(c.org || c.pessoa) && <div className="cont">{c.org || c.pessoa}</div>}
                     {c.valor > 0 && <div className="row"><span style={{ fontSize: 13, fontWeight: 700 }}>{fmtValor(c.valor)}</span></div>}
@@ -84,6 +96,42 @@ export default function Funil() {
           ))}
         </div>
       )}
+
+      <Modal open={!!detalhe} title={(detalhe && ((detalhe.dado && detalhe.dado.titulo) || detalhe.titulo)) || "Negócio"} onClose={() => setDetalhe(null)}>
+        {detalhe && detalhe.carregando && <div style={{ color: "var(--text3)" }}>Carregando…</div>}
+        {detalhe && detalhe.erro && <div style={{ color: "var(--danger)" }}>{detalhe.erro}</div>}
+        {detalhe && detalhe.dado && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {detalhe.dado.org && <div className="kv"><span className="k">Empresa</span><span className="v">{detalhe.dado.org}</span></div>}
+            {detalhe.dado.pessoa?.nome && <div className="kv"><span className="k">Contato</span><span className="v">{detalhe.dado.pessoa.nome}</span></div>}
+            {detalhe.dado.pessoa?.email && <div className="kv"><span className="k">E-mail</span><span className="v">{detalhe.dado.pessoa.email}</span></div>}
+            {detalhe.dado.pessoa?.telefone && <div className="kv"><span className="k">Telefone</span><span className="v">{detalhe.dado.pessoa.telefone}</span></div>}
+            <div className="kv"><span className="k">Etapa</span><span className="v">{detalhe.etapa}</span></div>
+            {detalhe.dado.dono && <div className="kv"><span className="k">Dono</span><span className="v">{detalhe.dado.dono}</span></div>}
+            {detalhe.dado.valor > 0 && <div className="kv"><span className="k">Valor</span><span className="v">{fmtValor(detalhe.dado.valor)}</span></div>}
+            {detalhe.dado.criado && <div className="kv"><span className="k">Criado</span><span className="v">{detalhe.dado.criado}</span></div>}
+
+            {detalhe.dado.atividades?.length > 0 && (<>
+              <div className="divider" style={{ margin: "6px 0" }} />
+              <div className="eyebrow" style={{ fontSize: 11 }}>ATIVIDADES</div>
+              {detalhe.dado.atividades.map((a, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text2)" }}>
+                  <span style={{ color: a.feito ? "var(--ok)" : "var(--text3)" }}>{a.feito ? "✓" : "○"}</span>
+                  <span>{a.assunto}{a.vencimento ? " · " + a.vencimento : ""}</span>
+                </div>
+              ))}
+            </>)}
+
+            {detalhe.dado.notas?.length > 0 && (<>
+              <div className="divider" style={{ margin: "6px 0" }} />
+              <div className="eyebrow" style={{ fontSize: 11 }}>NOTAS</div>
+              {detalhe.dado.notas.map((n, i) => (
+                <div key={i} style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>{n.conteudo}{n.criado ? " (" + n.criado + ")" : ""}</div>
+              ))}
+            </>)}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

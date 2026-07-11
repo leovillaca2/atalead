@@ -4,8 +4,11 @@
 // Fase 1c: implementar a chamada real via SDK/HTTP do Evernote quando o developer token
 // for liberado (aprovação do Evernote pode levar dias). Até lá, o app usa o modo "colar".
 
+import { exigirLogin } from "../server/google.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ erro: "Método não permitido" });
+  if (!(await exigirLogin(req))) return res.status(401).json({ erro: "não autenticado" });
 
   const token = process.env.EVERNOTE_DEV_TOKEN;
   if (!token) {
