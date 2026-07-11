@@ -23,9 +23,9 @@ function Sidebar({ email }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const items = [
-    { to: "/", name: "Funil", icon: "funil", match: (p) => p === "/" },
+    { to: "/", name: "Calendário", icon: "calendar", match: (p) => p === "/" || p === "/calendario" },
+    { to: "/funil", name: "Funil", icon: "funil", match: (p) => p === "/funil" },
     { to: "/reunioes", name: "Reuniões", icon: "reunioes", match: (p) => p.startsWith("/reuni") },
-    { to: "/calendario", name: "Calendário", icon: "calendar", match: (p) => p === "/calendario" },
     { to: "/passos", name: "Próximos passos", icon: "passos", match: (p) => p === "/passos" },
   ];
   const nome = email
@@ -57,7 +57,7 @@ function Sidebar({ email }) {
 function TopBar({ tema, toggleTema }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const titulo = pathname === "/reunioes" ? "Reuniões" : pathname === "/calendario" ? "Calendário" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Funil";
+  const titulo = pathname === "/funil" ? "Funil" : pathname === "/reunioes" ? "Reuniões" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Calendário";
   return (
     <div className="topbar">
       <div className="crumbs"><span className="cur">{titulo}</span></div>
@@ -96,7 +96,8 @@ export default function App() {
       <main className="main">
         <TopBar tema={tema} toggleTema={toggleTema} />
         <Routes>
-          <Route path="/" element={<Funil />} />
+          <Route path="/" element={<Calendario />} />
+          <Route path="/funil" element={<Funil />} />
           <Route path="/reuniao/:id" element={<Reuniao />} />
           <Route path="/reunioes" element={<Historico />} />
           <Route path="/calendario" element={<Calendario />} />

@@ -5,34 +5,52 @@ import { gerarAta } from "../lib/api.js";
 import { criarReuniaoCompleta } from "../lib/db.js";
 import { extrairTexto } from "../lib/extrair.js";
 
+const OWN_DOMAIN = "pgmais.com.br"; // dominio do seu time; outros = lado do lead
+
+function empresaDoEmail(email) {
+  const dom = (email.split("@")[1] || "").toLowerCase();
+  const w = dom.split(".")[0];
+  return w ? w.charAt(0).toUpperCase() + w.slice(1) : "";
+}
+function ehTime(email) {
+  return !!email && email.toLowerCase().endsWith("@" + OWN_DOMAIN);
+}
+
 export default function NovaReuniao() {
   const nav = useNavigate();
   const loc = useLocation();
   const [titulo, setTitulo] = useState("");
   const [transcricao, setTranscricao] = useState("");
-  const [participantes, setParticipantes] = useState([{ nome: "", empresa: "", papel: "" }]);
-  const [estado, setEstado] = useState("idle"); // idle | gerando | salvando
+  const [participantes, setParticipantes] = useState([{ nome: "", empresa: "", papel: "", email: "" }]);
+  const [leadEmpresa, setLeadEmpresa] = useState("");
+  const [leadContato, setLeadContato] = useState("");
+  const [doEvento, setDoEvento] = useState(false);
+  const [estado, setEstado] = useState("idle");
   const [erro, setErro] = useState("");
   const [arquivo, setArquivo] = useState("");
   const [lendo, setLendo] = useState(false);
 
-  // Pre-preenche a partir de um evento do Google Calendar (vindo da tela Calendário).
   useEffect(() => {
     const ev = loc.state && loc.state.evento;
     if (!ev) return;
+    setDoEvento(true);
     if (ev.titulo) setTitulo(ev.titulo);
-    if (ev.participantes && ev.participantes.length) {
-      setParticipantes(ev.participantes.map((p) => ({ nome: p.nome || "", empresa: p.empresa || "", papel: "" })));
+    const parts = (ev.participantes || []).map((p) => ({ nome: p.nome || "", empresa: p.empresa || "", papel: "", email: p.email || "" }));
+    if (parts.length) setParticipantes(parts);
+    const leadP = (ev.participantes || []).find((p) => p.email && !ehTime(p.email));
+    if (leadP) {
+      setLeadEmpresa(empresaDoEmail(leadP.email) || leadP.empresa || "");
+      setLeadContato(leadP.nome || "");
     }
   }, []); // eslint-disable-line
 
   const setP = (i, campo, v) => setParticipantes((ps) => ps.map((p, k) => (k === i ? { ...p, [campo]: v } : p)));
-  const addP = () => setParticipantes((ps) => [...ps, { nome: "", empresa: "", papel: "" }]);
+  const addP = () => setParticipantes((ps) => [...ps, { nome: "", empresa: "", papel: "", email: "" }]);
   const rmP = (i) => setParticipantes((ps) => ps.filter((_, k) => k !== i));
 
   async function onArquivo(e) {
     const file = e.target.files && e.target.files[0];
-    e.target.value = ""; // permite reanexar o mesmo arquivo
+    e.target.value = "";
     if (!file) return;
     setErro(""); setLendo(true);
     try {
@@ -43,9 +61,7 @@ export default function NovaReuniao() {
       if (!titulo.trim()) setTitulo(file.name.replace(/\.[^.]+$/, ""));
     } catch (err) {
       setErro(err.message || "Falha ao ler o arquivo.");
-    } finally {
-      setLendo(false);
-    }
+    } finally { setLendo(false); }
   }
 
   async function gerar() {
@@ -55,7 +71,9 @@ export default function NovaReuniao() {
       const r = await gerarAta({ transcricao, participantes });
       const ata = r.ata || { resumo: r.output || "", decisoes: [], proximos_passos: [], produtos: [], lead: {} };
       if (!ata.lead) ata.lead = {};
-      // Auto-preenche titulo e participantes se o usuario deixou em branco (a Tess detecta).
+      // Empresa/contato do lead vem do calendario (confiavel); Tess preenche o resto.
+      if (leadEmpresa) ata.lead.empresa = leadEmpresa;
+      if (leadContato) ata.lead.contato = leadContato;
       const empresa = ata.lead.empresa || "";
       const tituloFinal = titulo.trim() || ata.titulo || (empresa ? `Reunião de prospecção — ${empresa}` : "Nova reunião");
       if (!ata.lead.empresa) ata.lead.empresa = tituloFinal;
@@ -77,7 +95,9 @@ export default function NovaReuniao() {
     <div className="screen" style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 820 }}>
       <div>
         <h1>Nova reunião</h1>
-        <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>Anexe um arquivo ou cole o texto e a Tess gera a ata executiva e o lead</div>
+        <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>
+          {doEvento ? "Dados vindos do calendário. Cole a transcrição e a Tess gera a ata." : "Anexe um arquivo ou cole o texto e a Tess gera a ata e o lead."}
+        </div>
       </div>
 
       <div className="card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -86,13 +106,25 @@ export default function NovaReuniao() {
           <input className="input" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Reunião de prospecção — Nome da empresa" />
         </div>
 
+        {/* Lead que vai pro Pipedrive (deduzido do calendário) */}
         <div className="field">
-          <label>Participantes <span style={{ color: "var(--text3)", fontWeight: 400 }}>(opcional, a Tess identifica)</span></label>
+          <label>Lead <span style={{ color: "var(--text3)", fontWeight: 400 }}>(vai pro Pipedrive)</span></label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input className="input" style={{ flex: 1, minWidth: 180 }} value={leadEmpresa} onChange={(e) => setLeadEmpresa(e.target.value)} placeholder="Empresa do lead" />
+            <input className="input" style={{ flex: 1, minWidth: 180 }} value={leadContato} onChange={(e) => setLeadContato(e.target.value)} placeholder="Contato (pessoa)" />
+          </div>
+          {doEvento && <div style={{ fontSize: 12, color: "var(--text3)" }}>Deduzido dos convidados de fora da PGMais. Ajuste se precisar.</div>}
+        </div>
+
+        <div className="field">
+          <label>Participantes <span style={{ color: "var(--text3)", fontWeight: 400 }}>(a Tess usa pra identificar quem falou)</span></label>
           {participantes.map((p, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input className="input" style={{ flex: 2 }} value={p.nome} onChange={(e) => setP(i, "nome", e.target.value)} placeholder={`Nome (Speaker ${i + 1})`} />
               <input className="input" style={{ flex: 2 }} value={p.empresa} onChange={(e) => setP(i, "empresa", e.target.value)} placeholder="Empresa" />
-              <input className="input" style={{ flex: 2 }} value={p.papel} onChange={(e) => setP(i, "papel", e.target.value)} placeholder="Papel" />
+              {p.email
+                ? <span className="pill" style={{ fontSize: 11, flexShrink: 0, background: ehTime(p.email) ? "var(--surface2)" : "var(--primary-soft)", color: ehTime(p.email) ? "var(--text2)" : "var(--primary)" }}>{ehTime(p.email) ? "time" : "lead"}</span>
+                : <input className="input" style={{ flex: 1.5 }} value={p.papel} onChange={(e) => setP(i, "papel", e.target.value)} placeholder="Papel" />}
               {participantes.length > 1 && <button className="btn ghost icon-btn" title="Remover" onClick={() => rmP(i)}>×</button>}
             </div>
           ))}
@@ -103,15 +135,12 @@ export default function NovaReuniao() {
 
         <div className="field">
           <label>Transcrição</label>
-
-          {/* Anexar arquivo (lido no navegador) */}
           <label className="dropzone">
             <input type="file" accept=".pdf,.docx,.txt,text/plain,application/pdf" onChange={onArquivo} hidden />
             <Icon name="upload" size={18} />
             <span>{lendo ? "Lendo arquivo..." : arquivo ? `Anexado: ${arquivo} (clique para trocar)` : "Anexar PDF, Word (.docx) ou TXT"}</span>
           </label>
-
-          <textarea className="textarea" value={transcricao} onChange={(e) => setTranscricao(e.target.value)} placeholder="Ou cole aqui a transcrição / suas notas..." />
+          <textarea className="textarea" value={transcricao} onChange={(e) => setTranscricao(e.target.value)} placeholder="Ou cole aqui a transcrição / suas notas (do Evernote)..." />
           <div style={{ fontSize: 12, color: "var(--text3)" }}>O arquivo é lido aqui no seu navegador. Só o texto vai pra Tess.</div>
         </div>
 
