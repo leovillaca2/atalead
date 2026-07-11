@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     const exec = await fetch(`${TESS_BASE}/agents/${agentId}/execute`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ prompt, model, temperature: "0.2", tools: "no-tools", waitExecution: true }),
+      body: JSON.stringify({ prompt, model, temperature: "0", tools: "no-tools", waitExecution: true }),
     });
     const data = await exec.json().catch(() => ({}));
     if (!exec.ok) return res.status(502).json({ erro: "Falha ao executar a Tess", detalhe: data });
