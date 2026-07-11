@@ -82,6 +82,11 @@ export function stagesPipedrive(pipelineId) {
   return get(`/api/pipedrive-stages?pipeline=${encodeURIComponent(pipelineId)}`);
 }
 
+// Adiciona uma nota a um negocio no Pipedrive (escrita).
+export function adicionarNotaPipedrive({ dealId, conteudo }) {
+  return post("/api/pipedrive-nota", { dealId, conteudo });
+}
+
 // Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.
 export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId }) {
   return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId });

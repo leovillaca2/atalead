@@ -33,7 +33,17 @@ export default async function handler(req, res) {
 
     const ativ = ((await (await fetch(`${base}/activities?deal_id=${id}&${q}`)).json()).data) || [];
     const notas = ((await (await fetch(`${base}/notes?deal_id=${id}&${q}`)).json()).data) || [];
+
+    // Atividades abertas: separa PRÓXIMAS (hoje pra frente ou sem data) de ATRASADAS (venceram).
     const abertas = ativ.filter((a) => !a.done);
+    const hoje = new Date().toISOString().slice(0, 10);
+    const proximas = abertas
+      .filter((a) => !a.due_date || a.due_date >= hoje)
+      .sort((a, b) => (a.due_date || "9999-12-31").localeCompare(b.due_date || "9999-12-31"));
+    const atrasadas = abertas
+      .filter((a) => a.due_date && a.due_date < hoje)
+      .sort((a, b) => (b.due_date || "").localeCompare(a.due_date || ""));
+    const mapA = (a) => ({ assunto: a.subject, vencimento: a.due_date || null });
     const notasOrd = notas.slice().sort((a, b) => (b.add_time || "").localeCompare(a.add_time || ""));
 
     return res.status(200).json({
@@ -46,8 +56,10 @@ export default async function handler(req, res) {
       criado: (deal.add_time || "").slice(0, 10),
       atualizado: (deal.update_time || "").slice(0, 10),
       pessoa,
-      atividades: abertas.slice(0, 12).map((a) => ({ assunto: a.subject, feito: false, vencimento: a.due_date || null })),
-      atividadesAbertas: abertas.length,
+      proximas: proximas.slice(0, 8).map(mapA),
+      proximasTotal: proximas.length,
+      atrasadas: atrasadas.slice(0, 5).map(mapA),
+      atrasadasTotal: atrasadas.length,
       atividadesFeitas: ativ.length - abertas.length,
       notas: notasOrd.slice(0, 5).map((n) => ({ conteudo: limpar(n.content), criado: (n.add_time || "").slice(0, 10) })),
       totalNotas: notas.length,
