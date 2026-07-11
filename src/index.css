@@ -58,6 +58,8 @@ h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.015em; tex
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 .spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.pbar { height: 8px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+.pbar > i { display: block; height: 100%; background: var(--primary); border-radius: 99px; transition: width .2s linear; }
 
 /* ============ Layout ============ */
 .app { min-height: 100vh; display: flex; align-items: stretch; }

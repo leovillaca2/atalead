@@ -29,6 +29,7 @@ export default function NovaReuniao() {
   const [erro, setErro] = useState("");
   const [arquivo, setArquivo] = useState("");
   const [lendo, setLendo] = useState(false);
+  const [progresso, setProgresso] = useState(0);
 
   useEffect(() => {
     const ev = loc.state && loc.state.evento;
@@ -57,6 +58,19 @@ export default function NovaReuniao() {
     window.__ataleadDirty = false;
     nav(-1);
   }
+
+  // Barra de progresso: sem progresso real da Tess, avanca desacelerando ate um teto
+  // (nunca crava 100% antes de terminar). Reflete as duas fases: gerando e salvando.
+  useEffect(() => {
+    if (estado === "idle") { setProgresso(0); return; }
+    const inicio = Date.now();
+    const id = setInterval(() => {
+      const t = (Date.now() - inicio) / 1000;
+      if (estado === "gerando") setProgresso(92 * (1 - Math.exp(-t / 16)));
+      else setProgresso(92 + 7 * (1 - Math.exp(-t / 2))); // salvando: 92 -> ~99
+    }, 150);
+    return () => clearInterval(id);
+  }, [estado]);
 
   const setP = (i, campo, v) => setParticipantes((ps) => ps.map((p, k) => (k === i ? { ...p, [campo]: v } : p)));
   const addP = () => setParticipantes((ps) => [...ps, { nome: "", empresa: "", papel: "", email: "" }]);
@@ -165,9 +179,17 @@ export default function NovaReuniao() {
 
         <div>
           <button className="btn primary" disabled={!podeGerar} onClick={gerar} style={{ opacity: podeGerar ? 1 : 0.55 }}>
-            {estado === "idle" ? <Icon name="doc" size={15} /> : <span className="spinner" />}<span>{rotulo}</span>
+            {estado === "idle" && <Icon name="doc" size={15} />}<span>{rotulo}</span>
           </button>
-          {estado === "gerando" && <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 8 }}>A Tess está lendo a transcrição. Isso pode levar até ~1 min, não feche a página.</div>}
+          {estado !== "idle" && (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="pbar"><i style={{ width: progresso + "%" }} /></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12, color: "var(--text3)" }}>
+                <span>{estado === "gerando" ? "A Tess está lendo a transcrição e montando a ata. Não feche a página." : "Salvando a ata e o lead"}</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{Math.round(progresso)}%</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
