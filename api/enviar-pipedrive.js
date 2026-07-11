@@ -17,12 +17,12 @@ export default async function handler(req, res) {
   const token = process.env.PIPEDRIVE_API_TOKEN;
   if (!token) return res.status(500).json({ erro: "PIPEDRIVE_API_TOKEN não configurado" });
 
-  const { lead, ata, dealId, expectedUpdateTime, force } = req.body || {};
+  const { lead, ata, dealId, expectedUpdateTime, force, pipelineId: ppBody, stageId: stBody } = req.body || {};
   if (!lead || !lead.empresa) return res.status(400).json({ erro: "Lead sem empresa" });
 
   const q = `api_token=${encodeURIComponent(token)}`;
-  const pipelineId = process.env.PIPEDRIVE_PIPELINE_ID || "25";
-  const stageId = process.env.PIPEDRIVE_STAGE_ID || null; // opcional: etapa de entrada
+  const pipelineId = ppBody || process.env.PIPEDRIVE_PIPELINE_ID || "1";
+  const stageId = stBody || process.env.PIPEDRIVE_STAGE_ID || null; // etapa de entrada escolhida
   const jf = (o) => ({ method: o.m, headers: { "Content-Type": "application/json" }, body: JSON.stringify(o.b) });
 
   try {

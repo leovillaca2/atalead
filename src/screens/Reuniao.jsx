@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
 import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, fmtValor } from "../lib/db.js";
-import { enviarPipedrive } from "../lib/api.js";
+import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive } from "../lib/api.js";
 
 const CAMPOS_LEAD = [
   ["empresa", "Empresa"], ["contato", "Contato"], ["cargo", "Cargo"],
@@ -27,6 +27,11 @@ export default function Reuniao() {
   const [eLead, setELead] = useState({});
   const [salvandoEdit, setSalvandoEdit] = useState(false);
 
+  const [funis, setFunis] = useState([]);
+  const [pipelineSel, setPipelineSel] = useState(localStorage.getItem("atalead-funil-pipeline") || "");
+  const [etapas, setEtapas] = useState([]);
+  const [stageSel, setStageSel] = useState("");
+
   useEffect(() => {
     getReuniao(id)
       .then((d) => {
@@ -38,6 +43,22 @@ export default function Reuniao() {
       })
       .catch((e) => setErro(e.message || "Reunião não encontrada"));
   }, [id]);
+
+  useEffect(() => {
+    pipelinesPipedrive().then((d) => {
+      setFunis(d.funis || []);
+      setPipelineSel((cur) => cur || (d.funis && d.funis[0] ? String(d.funis[0].id) : ""));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!pipelineSel) return;
+    setEtapas([]); setStageSel("");
+    stagesPipedrive(pipelineSel).then((d) => {
+      setEtapas(d.etapas || []);
+      setStageSel((d.etapas && d.etapas[0]) ? String(d.etapas[0].id) : "");
+    }).catch(() => {});
+  }, [pipelineSel]);
 
   if (erro) return <div className="screen" style={{ color: "var(--danger)" }}>{erro}</div>;
   if (!dados) return <div className="screen" style={{ color: "var(--text3)" }}>Carregando…</div>;
@@ -72,7 +93,7 @@ export default function Reuniao() {
   async function enviar(force = false) {
     setEnviando(true); setMsgEnvio("");
     try {
-      const res = await enviarPipedrive({ lead, ata, dealId, expectedUpdateTime: updateTime, force });
+      const res = await enviarPipedrive({ lead, ata, dealId, expectedUpdateTime: updateTime, force, pipelineId: pipelineSel, stageId: stageSel });
       if (res.conflito) { setConflito(res); return; }
       if (res.simulado) { setMsgEnvio(res.mensagem || "Modo seguro: nada foi escrito."); return; }
       if (res.ok && res.dealId) {
@@ -163,6 +184,17 @@ export default function Reuniao() {
               </>)}
 
               {!editando && (<>
+                {!jaTemDeal && funis.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                    <label style={{ fontSize: 12, color: "var(--text2)" }}>Enviar para o funil e etapa</label>
+                    <select className="input" style={{ padding: "8px 11px", cursor: "pointer" }} value={pipelineSel} onChange={(e) => setPipelineSel(e.target.value)}>
+                      {funis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                    </select>
+                    <select className="input" style={{ padding: "8px 11px", cursor: "pointer" }} value={stageSel} onChange={(e) => setStageSel(e.target.value)}>
+                      {etapas.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                    </select>
+                  </div>
+                )}
                 <button className="btn primary block" style={{ marginTop: 4 }} onClick={() => enviar(false)} disabled={enviando}>
                   <Icon name="arrow" size={15} strokeWidth={2.2} /><span>{enviando ? "Enviando..." : jaTemDeal ? "Atualizar no Pipedrive" : "Revisar e enviar ao Pipedrive"}</span>
                 </button>

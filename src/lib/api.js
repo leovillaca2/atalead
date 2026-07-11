@@ -40,7 +40,12 @@ export function funilPipedrive(pipelineId) {
   return get("/api/pipedrive-funil" + qs);
 }
 
+// Lista as etapas de um funil (pra escolher onde entra o negocio).
+export function stagesPipedrive(pipelineId) {
+  return get(`/api/pipedrive-stages?pipeline=${encodeURIComponent(pipelineId)}`);
+}
+
 // Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.
-export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force }) {
-  return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force });
+export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId }) {
+  return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId });
 }
