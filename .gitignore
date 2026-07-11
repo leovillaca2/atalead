@@ -12,3 +12,6 @@ build/
 # Logs e temporarios
 *.log
 .DS_Store
+
+# Supabase CLI (cache local)
+supabase/.temp/
