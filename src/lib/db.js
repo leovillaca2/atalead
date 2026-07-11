@@ -74,6 +74,20 @@ export async function updateAta(ataId, campos) {
   await run(() => supabase.from("atas").update(campos).eq("id", ataId).select());
 }
 
+export async function listarReunioes() {
+  return run(() =>
+    supabase
+      .from("reunioes")
+      .select("id, titulo, data, created_at, status, notas, prospects(empresa, valor_estimado)")
+      .order("created_at", { ascending: false })
+      .limit(300)
+  ) || [];
+}
+
+export async function salvarNotas(reuniaoId, notas) {
+  await run(() => supabase.from("reunioes").update({ notas }).eq("id", reuniaoId).select());
+}
+
 export async function salvarVinculoPipedrive(reuniaoId, v) {
   await run(() =>
     supabase.from("reunioes").update({

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
-import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, fmtValor } from "../lib/db.js";
+import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, salvarNotas, fmtValor } from "../lib/db.js";
 import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive } from "../lib/api.js";
 
 const CAMPOS_LEAD = [
@@ -32,6 +32,9 @@ export default function Reuniao() {
   const [etapas, setEtapas] = useState([]);
   const [stageSel, setStageSel] = useState("");
 
+  const [notas, setNotas] = useState("");
+  const [salvandoNotas, setSalvandoNotas] = useState(false);
+
   useEffect(() => {
     getReuniao(id)
       .then((d) => {
@@ -40,6 +43,7 @@ export default function Reuniao() {
         setELead({ ...((d.ata && d.ata.lead) || {}) });
         setDealId(d.reuniao.pipedrive_deal_id || null);
         setUpdateTime(d.reuniao.pipedrive_update_time || null);
+        setNotas(d.reuniao.notas || "");
       })
       .catch((e) => setErro(e.message || "Reunião não encontrada"));
   }, [id]);
@@ -88,6 +92,11 @@ export default function Reuniao() {
       setEditando(false);
     } catch (e) { setMsgEnvio(e.message || "Falha ao salvar."); }
     finally { setSalvandoEdit(false); }
+  }
+
+  async function salvarNotasFn() {
+    setSalvandoNotas(true);
+    try { await salvarNotas(id, notas); } catch { /* segue */ } finally { setSalvandoNotas(false); }
   }
 
   async function enviar(force = false) {
@@ -224,6 +233,16 @@ export default function Reuniao() {
               <div className="transcript mono" style={{ whiteSpace: "pre-wrap" }}>{reuniao.transcricao}</div>
             </div>
           )}
+
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title"><Icon name="edit" size={15} /><span>Notas</span></div>
+              <button className="btn primary" style={{ padding: "6px 12px" }} onClick={salvarNotasFn} disabled={salvandoNotas}>{salvandoNotas ? "Salvando..." : "Salvar"}</button>
+            </div>
+            <div className="card-body">
+              <textarea className="textarea" style={{ minHeight: 110 }} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Suas anotações sobre esta reunião..." />
+            </div>
+          </div>
         </div>
       </div>
 
