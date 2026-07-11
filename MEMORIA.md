@@ -76,7 +76,16 @@ ESTADO 2026-07-11 (funcional e verificado em producao):
 - #5 Notas por reuniao (coluna notas, migration 20260711000002; editor na tela da reuniao, db.salvarNotas).
 - #9 Mini painel no topo do historico: reunioes no mes, total, valor estimado somado.
 - Anexar PDF/Word/TXT na Nova reuniao (extrai texto no navegador, libs pdfjs/mammoth sob demanda via import dinamico); botao Evernote removido. Rodape mostra nome amigavel (Augusto Mello).
-- FALTA (nao feito no loop, exige OK do usuario): #3 ligar Pipedrive de verdade = setar PIPEDRIVE_SAFE_MODE=false no Vercel + teste controlado de 1 negocio. #10 gravar/transcrever no proprio app (navegador MediaRecorder + agente de transcricao da Tess, ex. agente 4431).
+- #10 gravar/transcrever no proprio app (navegador MediaRecorder + agente de transcricao da Tess, ex. agente 4431) = ainda futuro.
+
+## Google Calendar + escrita Pipedrive + esteira (estado 2026-07-11)
+- GOOGLE CALENDAR conectado via OAuth. Projeto Google Cloud numa conta GMAIL PESSOAL do Augusto (a PGMais bloqueia criar projeto e login pessoal na rede; entao usamos conta pessoal, app "In production" sem verificacao). Scope calendar.events (le E escreve). Client id/secret + GOOGLE_REDIRECT_URI + GOOGLE_SCOPE no Vercel e .env.local. Token do usuario guardado em google_conta (migration 20260711000003), RLS sem policy (so service_role). Funcoes: /api/google/auth, /callback, /eventos, /criar-evento. Le a agenda "primary" da conta que autorizou (hoje = calendario pessoal; a agenda de trabalho pgmais exigiria admin).
+- PIPEDRIVE ESCRITA LIGADA: PIPEDRIVE_SAFE_MODE=false no Vercel. Testado (criou+apagou negocio 15291). enviar-pipedrive faz dedup de org/pessoa (search antes de criar), cria/atualiza deal + nota (ata) + atividades (proximos passos), com check de conflito por update_time e modal de sobrescrever.
+- FUNIL: em /funil. Le do Pipedrive com filtro de DONO (padrao Augusto id 1586234) e funil padrao "Novas Marcas" (id 1). Colunas em painel, scroll horizontal. Clique no card abre DETALHE do lead (empresa/contato/email/telefone/atividades/notas) via /api/pipedrive-deal.
+- SEGURANCA: TODAS as /api (pipedrive-*, gerar-ata, evernote, google eventos/criar-evento/deal) exigem login (exigirLogin no server/google.js valida o JWT do Supabase). Client manda o bearer automatico (get/post em api.js). Chaves so no servidor.
+- HOME = Calendario (rota "/"). Sidebar: Calendario, Funil, Reunioes, Proximos passos, Sair. "Integracoes" removido.
+- ESTEIRA: Calendario (agendar/ver) -> reuniao acontece (Evernote grava/transcreve = unico passo manual) -> "Gerar ata" no evento -> Nova reuniao ja preenchida (titulo, participantes com tag time/lead por dominio pgmais.com.br, empresa+contato do lead deduzidos) -> cola/anexa transcricao -> Tess gera ata -> revisa/edita -> envia/atualiza no Pipedrive (funil+etapa) -> acompanha no Funil.
+- Uploads PDF/Word/TXT lidos no navegador (pdfjs/mammoth sob demanda). Login unico (augusto.mello@pgmais.com.br). Rotacionar chaves (Tess/Pipedrive/Google secret) e trocar senha fraca quando der.
 - Falta: Evernote (chave no suporte, modo colar cobre); trocar a senha fraca; refinar RLS por dono se virar multiusuario; seed opcional. Rodar /api local = `vercel dev`.
 
 ## Estrutura do codigo
