@@ -58,14 +58,25 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, dealId, update_time: upd.data.update_time });
     }
 
-    // 4) CRIAR do zero: organizacao, pessoa, negocio, nota (a ata) e tarefas.
-    const org = await (await fetch(`${BASE}/organizations?${q}`, jf({ m: "POST", b: { name: lead.empresa } }))).json();
-    const orgId = org && org.data && org.data.id;
+    // 4) CRIAR: reusa organizacao/pessoa se ja existirem (evita duplicar), senao cria.
+    let orgId = null;
+    const orgBusca = await (await fetch(`${BASE}/organizations/search?term=${encodeURIComponent(lead.empresa)}&exact_match=true&${q}`)).json();
+    if (orgBusca && orgBusca.data && orgBusca.data.items && orgBusca.data.items.length) {
+      orgId = orgBusca.data.items[0].item.id;
+    } else {
+      const org = await (await fetch(`${BASE}/organizations?${q}`, jf({ m: "POST", b: { name: lead.empresa } }))).json();
+      orgId = org && org.data && org.data.id;
+    }
 
     let personId = null;
     if (lead.contato) {
-      const person = await (await fetch(`${BASE}/persons?${q}`, jf({ m: "POST", b: { name: lead.contato, org_id: orgId } }))).json();
-      personId = person && person.data && person.data.id;
+      const pBusca = await (await fetch(`${BASE}/persons/search?term=${encodeURIComponent(lead.contato)}&${q}`)).json();
+      if (pBusca && pBusca.data && pBusca.data.items && pBusca.data.items.length) {
+        personId = pBusca.data.items[0].item.id;
+      } else {
+        const person = await (await fetch(`${BASE}/persons?${q}`, jf({ m: "POST", b: { name: lead.contato, org_id: orgId } }))).json();
+        personId = person && person.data && person.data.id;
+      }
     }
 
     const dealBody = { title: `${lead.empresa} — proposta`, org_id: orgId, person_id: personId, pipeline_id: Number(pipelineId) };
