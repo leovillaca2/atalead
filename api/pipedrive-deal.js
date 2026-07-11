@@ -33,6 +33,8 @@ export default async function handler(req, res) {
 
     const ativ = ((await (await fetch(`${base}/activities?deal_id=${id}&${q}`)).json()).data) || [];
     const notas = ((await (await fetch(`${base}/notes?deal_id=${id}&${q}`)).json()).data) || [];
+    const abertas = ativ.filter((a) => !a.done);
+    const notasOrd = notas.slice().sort((a, b) => (b.add_time || "").localeCompare(a.add_time || ""));
 
     return res.status(200).json({
       titulo: deal.title,
@@ -44,8 +46,11 @@ export default async function handler(req, res) {
       criado: (deal.add_time || "").slice(0, 10),
       atualizado: (deal.update_time || "").slice(0, 10),
       pessoa,
-      atividades: ativ.map((a) => ({ assunto: a.subject, feito: !!a.done, vencimento: a.due_date || null })),
-      notas: notas.map((n) => ({ conteudo: limpar(n.content), criado: (n.add_time || "").slice(0, 10) })),
+      atividades: abertas.slice(0, 12).map((a) => ({ assunto: a.subject, feito: false, vencimento: a.due_date || null })),
+      atividadesAbertas: abertas.length,
+      atividadesFeitas: ativ.length - abertas.length,
+      notas: notasOrd.slice(0, 5).map((n) => ({ conteudo: limpar(n.content), criado: (n.add_time || "").slice(0, 10) })),
+      totalNotas: notas.length,
     });
   } catch (e) {
     return res.status(502).json({ erro: "Erro ao ler o negócio", detalhe: String(e) });

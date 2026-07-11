@@ -7,6 +7,7 @@ import Passos from "./screens/Passos.jsx";
 import NovaReuniao from "./screens/NovaReuniao.jsx";
 import Historico from "./screens/Historico.jsx";
 import Calendario from "./screens/Calendario.jsx";
+import Negocio from "./screens/Negocio.jsx";
 import Login from "./screens/Login.jsx";
 import { supabase } from "./lib/supabase.js";
 
@@ -57,7 +58,7 @@ function Sidebar({ email }) {
 function TopBar({ tema, toggleTema }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const titulo = pathname === "/funil" ? "Funil" : pathname === "/reunioes" ? "Reuniões" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Calendário";
+  const titulo = pathname === "/funil" ? "Funil" : pathname.startsWith("/negocio") ? "Negócio" : pathname === "/reunioes" ? "Reuniões" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Calendário";
   return (
     <div className="topbar">
       <div className="crumbs"><span className="cur">{titulo}</span></div>
@@ -98,6 +99,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Calendario />} />
           <Route path="/funil" element={<Funil />} />
+          <Route path="/negocio/:id" element={<Negocio />} />
           <Route path="/reuniao/:id" element={<Reuniao />} />
           <Route path="/reunioes" element={<Historico />} />
           <Route path="/calendario" element={<Calendario />} />
