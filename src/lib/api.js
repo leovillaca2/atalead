@@ -1,6 +1,5 @@
 // Cliente que fala com as funcoes de servidor (/api).
 // As chaves da Tess, Evernote e Pipedrive vivem SO no servidor.
-// O navegador nunca ve nenhuma delas: manda os dados, recebe o resultado.
 
 async function post(path, body) {
   const res = await fetch(path, {
@@ -13,17 +12,29 @@ async function post(path, body) {
   return data;
 }
 
+async function get(path) {
+  const res = await fetch(path);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erro || `Falha em ${path}`);
+  return data;
+}
+
 // Gera a ata a partir da transcricao (servidor chama a Tess).
 export function gerarAta({ transcricao, participantes }) {
   return post("/api/gerar-ata", { transcricao, participantes });
 }
 
-// Puxa a transcricao de uma nota do Evernote pelo titulo (servidor chama o Evernote).
+// Puxa a transcricao de uma nota do Evernote (servidor chama o Evernote).
 export function buscarNotaEvernote({ titulo }) {
   return post("/api/evernote-nota", { titulo });
 }
 
-// Envia o lead aprovado para o Pipedrive (servidor chama o Pipedrive).
-export function enviarPipedrive({ lead, ata }) {
-  return post("/api/enviar-pipedrive", { lead, ata });
+// Le o funil do Pipedrive (negocios agrupados por etapa).
+export function funilPipedrive() {
+  return get("/api/pipedrive-funil");
+}
+
+// Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.
+export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force }) {
+  return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force });
 }

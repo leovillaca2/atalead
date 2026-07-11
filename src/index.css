@@ -195,3 +195,15 @@ h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.015em; tex
   .topbar, .screen { padding-left: 18px; padding-right: 18px; }
   .col-side { max-width: none; }
 }
+
+/* ============ Modal ============ */
+.modal-overlay { position: fixed; inset: 0; background: rgba(8, 18, 18, .48); display: grid; place-items: center; padding: 20px; z-index: 100; }
+.modal-card { width: 100%; max-width: 480px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.28); overflow: hidden; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--border); font-size: 15.5px; font-weight: 700; }
+.modal-head.warn { background: var(--warn-soft); color: var(--warn); border-bottom-color: transparent; }
+.modal-body { padding: 18px 20px; font-size: 14px; color: var(--text2); line-height: 1.6; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
+.diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.diff .box { border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.diff .box h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); }
+.diff .box.novo { border-color: var(--primary); }

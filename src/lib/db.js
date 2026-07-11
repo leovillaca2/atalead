@@ -70,6 +70,18 @@ export async function togglePasso(id, feito) {
   await run(() => supabase.from("proximos_passos").update({ feito }).eq("id", id).select());
 }
 
+export async function salvarVinculoPipedrive(reuniaoId, v) {
+  await run(() =>
+    supabase.from("reunioes").update({
+      pipedrive_deal_id: v.dealId || null,
+      pipedrive_org_id: v.orgId || null,
+      pipedrive_person_id: v.personId || null,
+      pipedrive_update_time: v.update_time || null,
+      pipedrive_synced_at: new Date().toISOString(),
+    }).eq("id", reuniaoId).select()
+  );
+}
+
 export async function criarReuniaoCompleta({ titulo, participantes, transcricao, ata }) {
   const lead = (ata && ata.lead) || {};
 

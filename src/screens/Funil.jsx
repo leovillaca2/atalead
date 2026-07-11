@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listarFunil, listarPassosAbertos, fmtValor } from "../lib/db.js";
+import { funilPipedrive } from "../lib/api.js";
+import { listarPassosAbertos, fmtValor } from "../lib/db.js";
 
 export default function Funil() {
   const nav = useNavigate();
@@ -9,13 +10,12 @@ export default function Funil() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    Promise.all([listarFunil(), listarPassosAbertos()])
-      .then(([c, p]) => { setColunas(c); setPassos(p); })
-      .catch((e) => setErro(e.message || "Erro ao carregar"));
+    funilPipedrive().then((d) => setColunas(d.colunas || [])).catch((e) => setErro(e.message || "Erro"));
+    listarPassosAbertos().then(setPassos).catch(() => {});
   }, []);
 
-  if (erro) return <div className="screen" style={{ color: "var(--danger)" }}>{erro}</div>;
-  if (!colunas) return <div className="screen" style={{ color: "var(--text3)" }}>Carregando…</div>;
+  if (erro) return <div className="screen" style={{ color: "var(--danger)" }}>Não consegui ler o Pipedrive: {erro}</div>;
+  if (!colunas) return <div className="screen" style={{ color: "var(--text3)" }}>Carregando funil do Pipedrive…</div>;
 
   const total = colunas.reduce((n, c) => n + c.cards.length, 0);
 
@@ -24,34 +24,30 @@ export default function Funil() {
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
           <h1>Funil</h1>
-          <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>{total} prospects ativos</div>
+          <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>
+            Direto do Pipedrive · {total} negócios abertos
+          </div>
         </div>
-        {total === 0 ? (
-          <div className="card" style={{ padding: 28, textAlign: "center", color: "var(--text3)" }}>
-            Nenhum prospect ainda. Clique em <b>Nova reunião</b> para gerar a primeira ata e o primeiro lead.
-          </div>
-        ) : (
-          <div className="kanban">
-            {colunas.map((col) => (
-              <div className="kcol" key={col.etapa}>
-                <div className="kcol-head">
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: col.cor, flexShrink: 0 }} />
-                  <span>{col.nome}</span><span className="cnt">{col.cards.length}</span>
-                </div>
-                {col.cards.map((c) => (
-                  <div className="kcard" key={c.id} onClick={() => c.ultimaReuniaoId && nav(`/reuniao/${c.ultimaReuniaoId}`)} style={{ cursor: c.ultimaReuniaoId ? "pointer" : "default" }}>
-                    <div className="emp">{c.empresa}</div>
-                    {c.contato && <div className="cont">{c.contato}</div>}
-                    <div className="row">
-                      <span style={{ fontSize: 13, fontWeight: 700 }}>{fmtValor(c.valor_estimado)}</span>
-                      {c.ultimaData && <span style={{ fontSize: 11.5, color: "var(--text3)" }}>reunião {c.ultimaData}</span>}
-                    </div>
-                  </div>
-                ))}
+        <div className="kanban">
+          {colunas.map((col) => (
+            <div className="kcol" key={col.id}>
+              <div className="kcol-head">
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--primary)", flexShrink: 0 }} />
+                <span>{col.nome}</span><span className="cnt">{col.cards.length}</span>
               </div>
-            ))}
-          </div>
-        )}
+              {col.cards.map((c) => (
+                <div className="kcard" key={c.id} style={{ cursor: "default" }}>
+                  <div className="emp">{c.titulo}</div>
+                  {(c.org || c.pessoa) && <div className="cont">{c.org || c.pessoa}</div>}
+                  {c.valor > 0 && (
+                    <div className="row"><span style={{ fontSize: 13, fontWeight: 700 }}>{fmtValor(c.valor)}</span></div>
+                  )}
+                </div>
+              ))}
+              {col.cards.length === 0 && <div style={{ fontSize: 12, color: "var(--text3)", padding: "6px 2px" }}>—</div>}
+            </div>
+          ))}
+        </div>
       </div>
 
       <aside className="card" style={{ width: 300, flexShrink: 0, position: "sticky", top: 76 }}>
