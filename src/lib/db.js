@@ -70,6 +70,10 @@ export async function togglePasso(id, feito) {
   await run(() => supabase.from("proximos_passos").update({ feito }).eq("id", id).select());
 }
 
+export async function updateAta(ataId, campos) {
+  await run(() => supabase.from("atas").update(campos).eq("id", ataId).select());
+}
+
 export async function salvarVinculoPipedrive(reuniaoId, v) {
   await run(() =>
     supabase.from("reunioes").update({

@@ -42,10 +42,16 @@ export default function NovaReuniao() {
     setEstado("gerando");
     try {
       const r = await gerarAta({ transcricao, participantes });
-      const ata = r.ata || { resumo: r.output || "", decisoes: [], proximos_passos: [], produtos: [], lead: { empresa: titulo } };
-      if (!ata.lead) ata.lead = { empresa: titulo };
+      const ata = r.ata || { resumo: r.output || "", decisoes: [], proximos_passos: [], produtos: [], lead: {} };
+      if (!ata.lead) ata.lead = {};
+      // Auto-preenche titulo e participantes se o usuario deixou em branco (a Tess detecta).
+      const empresa = ata.lead.empresa || "";
+      const tituloFinal = titulo.trim() || ata.titulo || (empresa ? `Reunião de prospecção — ${empresa}` : "Nova reunião");
+      if (!ata.lead.empresa) ata.lead.empresa = tituloFinal;
+      const temParts = participantes.some((p) => p.nome && p.nome.trim());
+      const partsFinal = temParts ? participantes : (Array.isArray(ata.participantes) && ata.participantes.length ? ata.participantes : participantes);
       setEstado("salvando");
-      const reuniaoId = await criarReuniaoCompleta({ titulo, participantes, transcricao, ata });
+      const reuniaoId = await criarReuniaoCompleta({ titulo: tituloFinal, participantes: partsFinal, transcricao, ata });
       nav(`/reuniao/${reuniaoId}`);
     } catch (e) {
       setErro(e.message || "Falha ao gerar a ata.");
@@ -53,7 +59,7 @@ export default function NovaReuniao() {
     }
   }
 
-  const podeGerar = titulo.trim() && transcricao.trim() && estado === "idle";
+  const podeGerar = transcricao.trim() && estado === "idle";
   const rotulo = estado === "gerando" ? "Gerando ata com a Tess..." : estado === "salvando" ? "Salvando..." : "Gerar ata com a Tess";
 
   return (
@@ -65,12 +71,12 @@ export default function NovaReuniao() {
 
       <div className="card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 20 }}>
         <div className="field">
-          <label>Título da reunião</label>
+          <label>Título da reunião <span style={{ color: "var(--text3)", fontWeight: 400 }}>(opcional, a Tess preenche)</span></label>
           <input className="input" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Reunião de prospecção — Nome da empresa" />
         </div>
 
         <div className="field">
-          <label>Participantes</label>
+          <label>Participantes <span style={{ color: "var(--text3)", fontWeight: 400 }}>(opcional, a Tess identifica)</span></label>
           {participantes.map((p, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input className="input" style={{ flex: 2 }} value={p.nome} onChange={(e) => setP(i, "nome", e.target.value)} placeholder={`Nome (Speaker ${i + 1})`} />

@@ -24,10 +24,10 @@ export default async function handler(req, res) {
 
   const prompt = [
     "Você é um assistente que transforma transcrições de reuniões de prospecção em ata executiva.",
-    mapa ? "Mapa de falantes: " + mapa + "." : "",
+    mapa ? "Mapa de falantes: " + mapa + "." : "Identifique os participantes pelo conteúdo da conversa.",
     "Gere a ata a partir da transcrição abaixo e responda APENAS com um JSON válido (sem texto fora do JSON, sem ```), no formato:",
-    '{"resumo": "texto corrido objetivo", "decisoes": ["..."], "proximos_passos": [{"titulo": "...", "responsavel": "...", "prazo": "..."}], "produtos": ["..."], "lead": {"empresa": "...", "contato": "...", "cargo": "...", "segmento": "...", "etapa": "...", "valor": "..."}}',
-    "Regras: seja fiel à transcrição, não invente dados; se um campo não aparecer, deixe string vazia. Escreva em português do Brasil, sem travessões.",
+    '{"titulo": "titulo curto da reuniao", "participantes": [{"nome": "...", "empresa": "...", "papel": "..."}], "resumo": "texto corrido objetivo", "decisoes": ["..."], "proximos_passos": [{"titulo": "...", "responsavel": "...", "prazo": "..."}], "produtos": ["..."], "lead": {"empresa": "...", "contato": "...", "cargo": "...", "segmento": "...", "etapa": "...", "valor": "..."}}',
+    "Regras: seja fiel à transcrição, não invente dados; se um campo não aparecer, deixe string vazia. O titulo deve seguir o padrao 'Reunião de prospecção — <empresa>'. Escreva em português do Brasil, sem travessões.",
     "",
     "Transcrição:",
     transcricao,

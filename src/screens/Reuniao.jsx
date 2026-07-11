@@ -2,8 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
-import { getReuniao, togglePasso, salvarVinculoPipedrive, fmtValor } from "../lib/db.js";
+import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, fmtValor } from "../lib/db.js";
 import { enviarPipedrive } from "../lib/api.js";
+
+const CAMPOS_LEAD = [
+  ["empresa", "Empresa"], ["contato", "Contato"], ["cargo", "Cargo"],
+  ["segmento", "Segmento"], ["etapa", "Etapa sugerida"], ["valor", "Valor estimado"],
+];
 
 export default function Reuniao() {
   const { id } = useParams();
@@ -17,10 +22,17 @@ export default function Reuniao() {
   const [msgEnvio, setMsgEnvio] = useState("");
   const [conflito, setConflito] = useState(null);
 
+  const [editando, setEditando] = useState(false);
+  const [eResumo, setEResumo] = useState("");
+  const [eLead, setELead] = useState({});
+  const [salvandoEdit, setSalvandoEdit] = useState(false);
+
   useEffect(() => {
     getReuniao(id)
       .then((d) => {
         setDados(d); setPassos(d.passos);
+        setEResumo((d.ata && d.ata.resumo) || "");
+        setELead({ ...((d.ata && d.ata.lead) || {}) });
         setDealId(d.reuniao.pipedrive_deal_id || null);
         setUpdateTime(d.reuniao.pipedrive_update_time || null);
       })
@@ -41,6 +53,22 @@ export default function Reuniao() {
     try { await togglePasso(p.id, novo); } catch { /* otimista */ }
   }
 
+  function iniciarEdicao() {
+    setEResumo(ata ? ata.resumo || "" : "");
+    setELead({ ...lead });
+    setEditando(true);
+  }
+  async function salvarEdicao() {
+    if (!ata) return;
+    setSalvandoEdit(true);
+    try {
+      await updateAta(ata.id, { resumo: eResumo, lead: eLead });
+      setDados((d) => ({ ...d, ata: { ...d.ata, resumo: eResumo, lead: { ...eLead } } }));
+      setEditando(false);
+    } catch (e) { setMsgEnvio(e.message || "Falha ao salvar."); }
+    finally { setSalvandoEdit(false); }
+  }
+
   async function enviar(force = false) {
     setEnviando(true); setMsgEnvio("");
     try {
@@ -58,7 +86,6 @@ export default function Reuniao() {
   }
 
   const jaTemDeal = !!dealId;
-  const rotuloBtn = enviando ? "Enviando..." : jaTemDeal ? "Atualizar no Pipedrive" : "Revisar e enviar ao Pipedrive";
 
   return (
     <div className="screen" style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 1480 }}>
@@ -83,9 +110,24 @@ export default function Reuniao() {
 
       <div className="cols">
         <div className="col-main card">
-          <div className="card-head"><div className="card-title"><Icon name="doc" size={16} /><span>Ata executiva</span></div></div>
+          <div className="card-head">
+            <div className="card-title"><Icon name="doc" size={16} /><span>Ata executiva</span></div>
+            {editando ? (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn" style={{ boxShadow: "none", padding: "7px 12px" }} onClick={() => setEditando(false)}>Cancelar</button>
+                <button className="btn primary" style={{ padding: "7px 12px" }} onClick={salvarEdicao} disabled={salvandoEdit}>{salvandoEdit ? "Salvando..." : "Salvar"}</button>
+              </div>
+            ) : (
+              <button className="btn ghost icon-btn" title="Editar ata e lead" onClick={iniciarEdicao}><Icon name="edit" size={14} /></button>
+            )}
+          </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div className="ata-block"><div className="eyebrow">RESUMO</div><p className="ata-p">{ata?.resumo || "—"}</p></div>
+            <div className="ata-block">
+              <div className="eyebrow">RESUMO</div>
+              {editando
+                ? <textarea className="textarea" style={{ minHeight: 120 }} value={eResumo} onChange={(e) => setEResumo(e.target.value)} />
+                : <p className="ata-p">{ata?.resumo || "—"}</p>}
+            </div>
             {decisoes.length > 0 && (<><div className="divider" /><div className="ata-block"><div className="eyebrow">DECISÕES</div>{decisoes.map((d, i) => (<div className="bullet" key={i}><Icon name="check" size={15} strokeWidth={2.6} /><span>{d}</span></div>))}</div></>)}
             {passos.length > 0 && (<><div className="divider" /><div className="ata-block"><div className="eyebrow">PRÓXIMOS PASSOS</div>{passos.map((t) => (
               <div className={"checkline" + (t.feito ? " done" : "")} key={t.id}>
@@ -104,18 +146,28 @@ export default function Reuniao() {
               <div className="card-title"><Icon name="target" size={15} /><span>Lead para o CRM</span></div>
             </div>
             <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {lead.empresa && <div className="kv"><span className="k">Empresa</span><span className="v">{lead.empresa}</span></div>}
-              {lead.contato && <div className="kv"><span className="k">Contato</span><span className="v">{lead.contato}</span></div>}
-              {lead.cargo && <div className="kv"><span className="k">Cargo</span><span className="v">{lead.cargo}</span></div>}
-              {lead.segmento && <div className="kv"><span className="k">Segmento</span><span className="v">{lead.segmento}</span></div>}
-              {lead.etapa && <div className="kv"><span className="k">Etapa sugerida</span><span className="v">{lead.etapa}</span></div>}
-              {lead.valor && (<><div className="divider" style={{ margin: "4px 0" }} /><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", color: "var(--text3)" }}>VALOR ESTIMADO</div><div className="value-big">{lead.valor}</div></>)}
+              {editando ? (
+                CAMPOS_LEAD.map(([k, rotulo]) => (
+                  <div className="field" key={k}>
+                    <label style={{ fontSize: 12, color: "var(--text2)" }}>{rotulo}</label>
+                    <input className="input" style={{ padding: "8px 11px" }} value={eLead[k] || ""} onChange={(e) => setELead((l) => ({ ...l, [k]: e.target.value }))} />
+                  </div>
+                ))
+              ) : (<>
+                {lead.empresa && <div className="kv"><span className="k">Empresa</span><span className="v">{lead.empresa}</span></div>}
+                {lead.contato && <div className="kv"><span className="k">Contato</span><span className="v">{lead.contato}</span></div>}
+                {lead.cargo && <div className="kv"><span className="k">Cargo</span><span className="v">{lead.cargo}</span></div>}
+                {lead.segmento && <div className="kv"><span className="k">Segmento</span><span className="v">{lead.segmento}</span></div>}
+                {lead.etapa && <div className="kv"><span className="k">Etapa sugerida</span><span className="v">{lead.etapa}</span></div>}
+                {lead.valor && (<><div className="divider" style={{ margin: "4px 0" }} /><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", color: "var(--text3)" }}>VALOR ESTIMADO</div><div className="value-big">{lead.valor}</div></>)}
+              </>)}
 
-              <button className="btn primary block" style={{ marginTop: 4 }} onClick={() => enviar(false)} disabled={enviando}>
-                <Icon name="arrow" size={15} strokeWidth={2.2} /><span>{rotuloBtn}</span>
-              </button>
-              {msgEnvio ? <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>{msgEnvio}</div>
-                : <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>Você confere os dados antes de criar o negócio</div>}
+              {!editando && (<>
+                <button className="btn primary block" style={{ marginTop: 4 }} onClick={() => enviar(false)} disabled={enviando}>
+                  <Icon name="arrow" size={15} strokeWidth={2.2} /><span>{enviando ? "Enviando..." : jaTemDeal ? "Atualizar no Pipedrive" : "Revisar e enviar ao Pipedrive"}</span>
+                </button>
+                <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>{msgEnvio || "Você confere os dados antes de criar o negócio"}</div>
+              </>)}
             </div>
           </div>
 
@@ -150,22 +202,14 @@ export default function Reuniao() {
         onClose={() => setConflito(null)}
         footer={<>
           <button className="btn" onClick={() => setConflito(null)}>Cancelar</button>
-          <button className="btn primary" onClick={() => { const c = conflito; setConflito(null); enviar(true); }}>Sobrescrever mesmo assim</button>
+          <button className="btn primary" onClick={() => { setConflito(null); enviar(true); }}>Sobrescrever mesmo assim</button>
         </>}
       >
         <p>Alguém alterou este negócio no Pipedrive depois da última vez que o AtaLead sincronizou. Se continuar, os dados do AtaLead vão sobrescrever o que está lá.</p>
         {conflito && (
           <div className="diff">
-            <div className="box">
-              <h4>No Pipedrive agora</h4>
-              <div>{conflito.atual?.titulo || "—"}</div>
-              <div style={{ marginTop: 4, fontWeight: 600 }}>{conflito.atual?.valor ? fmtValor(conflito.atual.valor) : "—"}</div>
-            </div>
-            <div className="box novo">
-              <h4>O AtaLead vai gravar</h4>
-              <div>{lead.empresa} — proposta</div>
-              <div style={{ marginTop: 4, fontWeight: 600 }}>{lead.valor || "—"}</div>
-            </div>
+            <div className="box"><h4>No Pipedrive agora</h4><div>{conflito.atual?.titulo || "—"}</div><div style={{ marginTop: 4, fontWeight: 600 }}>{conflito.atual?.valor ? fmtValor(conflito.atual.valor) : "—"}</div></div>
+            <div className="box novo"><h4>O AtaLead vai gravar</h4><div>{lead.empresa} — proposta</div><div style={{ marginTop: 4, fontWeight: 600 }}>{lead.valor || "—"}</div></div>
           </div>
         )}
       </Modal>
