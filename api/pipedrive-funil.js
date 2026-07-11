@@ -5,6 +5,7 @@ export default async function handler(req, res) {
   const token = process.env.PIPEDRIVE_API_TOKEN;
   if (!token) return res.status(500).json({ erro: "PIPEDRIVE_API_TOKEN não configurado" });
   const pipelineId = (req.query && req.query.pipeline) || process.env.PIPEDRIVE_PIPELINE_ID || "1";
+  const owner = (req.query && req.query.owner) || "";
 
   const base = "https://api.pipedrive.com/v1";
   const q = `api_token=${encodeURIComponent(token)}`;
@@ -14,7 +15,8 @@ export default async function handler(req, res) {
       fetch(`${base}/pipelines/${pipelineId}/deals?status=open&limit=500&${q}`),
     ]);
     const stages = ((await stagesR.json()).data || []).sort((a, b) => a.order_nr - b.order_nr);
-    const deals = (await dealsR.json()).data || [];
+    let deals = (await dealsR.json()).data || [];
+    if (owner) deals = deals.filter((d) => d.user_id && String(d.user_id.id) === String(owner));
 
     const colunas = stages.map((s) => ({
       id: s.id,

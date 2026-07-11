@@ -41,10 +41,18 @@ export function pipelinesPipedrive() {
   return get("/api/pipedrive-pipelines");
 }
 
-// Le um funil do Pipedrive (negocios agrupados por etapa).
-export function funilPipedrive(pipelineId) {
-  const qs = pipelineId ? `?pipeline=${encodeURIComponent(pipelineId)}` : "";
-  return get("/api/pipedrive-funil" + qs);
+// Lista os usuarios (donos) do Pipedrive (pro filtro de dono).
+export function usersPipedrive() {
+  return get("/api/pipedrive-users");
+}
+
+// Le um funil do Pipedrive (negocios agrupados por etapa), com filtro opcional de dono.
+export function funilPipedrive(pipelineId, owner) {
+  const qs = new URLSearchParams();
+  if (pipelineId) qs.set("pipeline", pipelineId);
+  if (owner) qs.set("owner", owner);
+  const s = qs.toString();
+  return get("/api/pipedrive-funil" + (s ? "?" + s : ""));
 }
 
 // Lista as etapas de um funil (pra escolher onde entra o negocio).

@@ -1,36 +1,37 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { pipelinesPipedrive, funilPipedrive } from "../lib/api.js";
+import { pipelinesPipedrive, funilPipedrive, usersPipedrive } from "../lib/api.js";
 import { listarPassosAbertos, fmtValor } from "../lib/db.js";
 
-const SAVE_KEY = "atalead-funil-pipeline";
+const SAVE_PIPE = "atalead-funil-pipeline";
+const SAVE_OWNER = "atalead-funil-owner";
+const DEFAULT_PIPE = "1"; // Novas Marcas (novos negocios)
+const DEFAULT_OWNER = "1586234"; // Augusto Mello
 const MAX_CARDS = 40;
 
 export default function Funil() {
   const nav = useNavigate();
-  const [funis, setFunis] = useState(null);
-  const [pipelineId, setPipelineId] = useState(localStorage.getItem(SAVE_KEY) || "");
+  const [funis, setFunis] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
+  const [pipelineId, setPipelineId] = useState(localStorage.getItem(SAVE_PIPE) || DEFAULT_PIPE);
+  const [ownerId, setOwnerId] = useState(localStorage.getItem(SAVE_OWNER) ?? DEFAULT_OWNER);
   const [colunas, setColunas] = useState(null);
   const [passos, setPassos] = useState([]);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    pipelinesPipedrive()
-      .then((d) => {
-        const list = d.funis || [];
-        setFunis(list);
-        setPipelineId((cur) => cur || (list[0] ? String(list[0].id) : ""));
-      })
-      .catch((e) => setErro(e.message || "Erro ao ler funis"));
+    pipelinesPipedrive().then((d) => setFunis(d.funis || [])).catch((e) => setErro(e.message || "Erro"));
+    usersPipedrive().then((d) => setUsuarios(d.usuarios || [])).catch(() => {});
     listarPassosAbertos().then(setPassos).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!pipelineId) return;
     setColunas(null);
-    localStorage.setItem(SAVE_KEY, pipelineId);
-    funilPipedrive(pipelineId).then((d) => setColunas(d.colunas || [])).catch((e) => setErro(e.message || "Erro"));
-  }, [pipelineId]);
+    localStorage.setItem(SAVE_PIPE, pipelineId);
+    localStorage.setItem(SAVE_OWNER, ownerId);
+    funilPipedrive(pipelineId, ownerId).then((d) => setColunas(d.colunas || [])).catch((e) => setErro(e.message || "Erro"));
+  }, [pipelineId, ownerId]);
 
   if (erro) return <div className="screen" style={{ color: "var(--danger)" }}>Não consegui ler o Pipedrive: {erro}</div>;
 
@@ -38,25 +39,25 @@ export default function Funil() {
 
   return (
     <div className="screen" style={{ display: "flex", gap: 22, alignItems: "flex-start" }}>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1>Funil</h1>
-            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>
-              Direto do Pipedrive{colunas ? ` · ${total} negócios abertos` : ""}
-            </div>
+            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>Direto do Pipedrive{colunas ? ` · ${total} negócios` : ""}</div>
           </div>
-          {funis && funis.length > 0 && (
-            <select
-              className="input"
-              value={pipelineId}
-              onChange={(e) => setPipelineId(e.target.value)}
-              style={{ maxWidth: 300, cursor: "pointer" }}
-              aria-label="Escolher funil"
-            >
-              {funis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
-            </select>
-          )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {usuarios.length > 0 && (
+              <select className="input" style={{ maxWidth: 200, cursor: "pointer" }} value={ownerId} onChange={(e) => setOwnerId(e.target.value)} aria-label="Dono do lead">
+                <option value="">Todos os donos</option>
+                {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+              </select>
+            )}
+            {funis.length > 0 && (
+              <select className="input" style={{ maxWidth: 260, cursor: "pointer" }} value={pipelineId} onChange={(e) => setPipelineId(e.target.value)} aria-label="Funil">
+                {funis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+              </select>
+            )}
+          </div>
         </div>
 
         {!colunas ? (
@@ -76,9 +77,7 @@ export default function Funil() {
                     {c.valor > 0 && <div className="row"><span style={{ fontSize: 13, fontWeight: 700 }}>{fmtValor(c.valor)}</span></div>}
                   </div>
                 ))}
-                {col.cards.length > MAX_CARDS && (
-                  <div style={{ fontSize: 12, color: "var(--text3)", padding: "4px 2px" }}>+{col.cards.length - MAX_CARDS} outros</div>
-                )}
+                {col.cards.length > MAX_CARDS && <div style={{ fontSize: 12, color: "var(--text3)", padding: "4px 2px" }}>+{col.cards.length - MAX_CARDS} outros</div>}
                 {col.cards.length === 0 && <div style={{ fontSize: 12, color: "var(--text3)", padding: "6px 2px" }}>—</div>}
               </div>
             ))}
