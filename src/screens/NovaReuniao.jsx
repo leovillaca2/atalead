@@ -248,18 +248,18 @@ export default function NovaReuniao() {
         <div className="field">
           <label>Participantes <span style={{ color: "var(--text3)", fontWeight: 400 }}>(a Tess usa pra identificar quem falou)</span></label>
           {participantes.map((p, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input className="input" style={{ flex: 2 }} value={p.nome} onChange={(e) => setP(i, "nome", e.target.value)} placeholder={`Nome (Speaker ${i + 1})`} />
-              <input className="input" style={{ flex: 2 }} value={p.empresa} onChange={(e) => setP(i, "empresa", e.target.value)} placeholder="Empresa" />
-              {p.email
-                ? <span className="pill" style={{ fontSize: 11, flexShrink: 0, background: ehTime(p.email) ? "var(--surface2)" : "var(--primary-soft)", color: ehTime(p.email) ? "var(--text2)" : "var(--primary)" }}>{ehTime(p.email) ? "time" : "lead"}</span>
-                : <input className="input" style={{ flex: 1.5 }} value={p.papel} onChange={(e) => setP(i, "papel", e.target.value)} placeholder="Papel" />}
+            <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input className="input" style={{ flex: 2, minWidth: 130 }} value={p.nome} onChange={(e) => setP(i, "nome", e.target.value)} placeholder={`Nome (Speaker ${i + 1})`} />
+              <input className="input" style={{ flex: 2, minWidth: 110 }} value={p.empresa} onChange={(e) => setP(i, "empresa", e.target.value)} placeholder="Empresa" />
+              <input className="input" style={{ flex: 1.6, minWidth: 110 }} value={p.papel} onChange={(e) => setP(i, "papel", e.target.value)} placeholder="Papel / cargo" />
+              {p.email && <span className="pill" style={{ fontSize: 11, flexShrink: 0, background: ehTime(p.email) ? "var(--surface2)" : "var(--primary-soft)", color: ehTime(p.email) ? "var(--text2)" : "var(--primary)" }}>{ehTime(p.email) ? "time" : "lead"}</span>}
               {participantes.length > 1 && <button className="btn ghost icon-btn" title="Remover" onClick={() => rmP(i)}>×</button>}
             </div>
           ))}
           <button className="btn" style={{ boxShadow: "none", alignSelf: "flex-start", color: "var(--primary)" }} onClick={addP}>
             <Icon name="plus" size={14} strokeWidth={2.2} /> Adicionar participante
           </button>
+          <div style={{ fontSize: 12, color: "var(--text3)" }}>Não sabe o papel de alguém? Deixe em branco que a Tess tenta identificar pela conversa.</div>
         </div>
 
         <div className="field">
