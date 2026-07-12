@@ -138,8 +138,10 @@ export default function Reuniao() {
     setEnviando(true); setMsgEnvio("");
     try {
       const alvo = linkDealId || dealId;
+      // Inclui os proximos passos (tabela separada) no payload da ata, pra virarem tarefas no Pipedrive.
+      const ataPayload = { ...(ata || {}), proximos_passos: (passos || []).map((p) => ({ titulo: p.titulo, responsavel: p.responsavel, prazo: p.prazo })) };
       const res = await enviarPipedrive({
-        lead, ata, dealId: alvo, apenasAnexar: !!linkDealId,
+        lead, ata: ataPayload, dealId: alvo, apenasAnexar: !!linkDealId,
         expectedUpdateTime: linkDealId ? undefined : updateTime,
         force, pipelineId: pipelineSel, stageId: stageSel,
       });

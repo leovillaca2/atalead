@@ -50,9 +50,14 @@ export default async function handler(req, res) {
   const safeMode = process.env.PIPEDRIVE_SAFE_MODE === "true"; // escrita ligada por padrao
 
   try {
-    // A) VINCULAR a um negocio existente: so anexa ata + tarefas (nao sobrescreve nada dele).
+    // A) VINCULAR a um negocio existente: atualiza valor/etapa preenchidos e anexa ata + tarefas.
+    // (nao sobrescreve o TITULO do negocio existente)
     if (dealId && apenasAnexar) {
       if (safeMode) return res.status(200).json({ ok: true, simulado: true, mensagem: "Modo seguro: nada foi escrito no Pipedrive." });
+      const patch = {};
+      const v = parseValor(lead.valor); if (v != null) { patch.value = v; patch.currency = "BRL"; }
+      if (stageId) patch.stage_id = Number(stageId);
+      if (Object.keys(patch).length) await fetch(`${BASE}/deals/${dealId}?${q}`, jf({ m: "PUT", b: patch }));
       await anexarAtaEtarefas(dealId, ata, q);
       return res.status(200).json({ ok: true, dealId, update_time: await updateTimeDe(dealId, q) });
     }
@@ -75,11 +80,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, simulado: true, mensagem: "Modo seguro: nada foi escrito no Pipedrive." });
     }
 
-    // D) ATUALIZAR negocio ja vinculado.
+    // D) ATUALIZAR negocio ja vinculado: valor + etapa. NAO mexe no titulo (pode ser deal externo).
     if (dealId) {
+      const bodyUpd = {};
       const valorUpd = parseValor(lead.valor);
-      const bodyUpd = { title: `${lead.empresa} — proposta` };
-      if (valorUpd != null) bodyUpd.value = valorUpd; // nao descarta 0
+      if (valorUpd != null) { bodyUpd.value = valorUpd; bodyUpd.currency = "BRL"; }
+      if (stageId) bodyUpd.stage_id = Number(stageId);
+      if (!Object.keys(bodyUpd).length) return res.status(200).json({ ok: true, dealId, update_time: await updateTimeDe(dealId, q) });
       const upd = await (await fetch(`${BASE}/deals/${dealId}?${q}`, jf({ m: "PUT", b: bodyUpd }))).json();
       if (!upd.success) return res.status(502).json({ erro: "Falha ao atualizar negócio", detalhe: upd });
       return res.status(200).json({ ok: true, dealId, update_time: upd.data.update_time });
