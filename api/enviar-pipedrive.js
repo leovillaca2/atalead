@@ -13,18 +13,29 @@ function parseValor(v) {
   return isNaN(f) ? null : f;
 }
 
-// Anexa a ata (nota) e os proximos passos (tarefas) a um negocio. NAO mexe em titulo/valor/etapa.
-async function anexarAtaEtarefas(dealId, ata, q) {
-  if (ata) {
-    const linhas = [];
-    if (ata.resumo) linhas.push("RESUMO\n" + ata.resumo);
-    if (ata.decisoes && ata.decisoes.length) linhas.push("DECISOES\n- " + ata.decisoes.join("\n- "));
-    if (ata.produtos && ata.produtos.length) linhas.push("PRODUTOS\n- " + ata.produtos.join("\n- "));
-    if (linhas.length) await fetch(`${BASE}/notes?${q}`, jf({ m: "POST", b: { deal_id: Number(dealId), content: linhas.join("\n\n") } }));
+// Registra a reuniao no negocio: 1) a REUNIAO como atividade concluida (anotacao = resumo,
+// data = quando ocorreu); 2) decisoes/produtos como nota; 3) proximos passos como tarefas abertas.
+async function anexarAtaEtarefas(dealId, ata, q, opts = {}) {
+  if (!ata) return;
+  const { dataReuniao, titulo } = opts;
+
+  // 1) A reuniao em si, como atividade CONCLUIDA, com o resumo na anotacao.
+  if (ata.resumo) {
+    const b = { subject: "Reunião" + (titulo ? " — " + titulo : ""), deal_id: Number(dealId), done: 1, type: "meeting", note: ata.resumo };
+    if (dataReuniao) b.due_date = dataReuniao;
+    await fetch(`${BASE}/activities?${q}`, jf({ m: "POST", b }));
   }
-  for (const t of (ata && ata.proximos_passos) || []) {
+
+  // 2) Decisoes e produtos como nota (se houver).
+  const linhas = [];
+  if (ata.decisoes && ata.decisoes.length) linhas.push("DECISÕES\n- " + ata.decisoes.join("\n- "));
+  if (ata.produtos && ata.produtos.length) linhas.push("PRODUTOS\n- " + ata.produtos.join("\n- "));
+  if (linhas.length) await fetch(`${BASE}/notes?${q}`, jf({ m: "POST", b: { deal_id: Number(dealId), content: linhas.join("\n\n") } }));
+
+  // 3) Proximos passos como atividades abertas (tarefas).
+  for (const t of ata.proximos_passos || []) {
     const subj = typeof t === "string" ? t : t.titulo;
-    if (subj) await fetch(`${BASE}/activities?${q}`, jf({ m: "POST", b: { subject: subj, deal_id: Number(dealId), done: 0 } }));
+    if (subj) await fetch(`${BASE}/activities?${q}`, jf({ m: "POST", b: { subject: subj, deal_id: Number(dealId), done: 0, type: "task" } }));
   }
 }
 
@@ -41,7 +52,7 @@ export default async function handler(req, res) {
   const token = process.env.PIPEDRIVE_API_TOKEN;
   if (!token) return res.status(500).json({ erro: "PIPEDRIVE_API_TOKEN não configurado" });
 
-  const { lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, pipelineId: ppBody, stageId: stBody } = req.body || {};
+  const { lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, dataReuniao, pipelineId: ppBody, stageId: stBody } = req.body || {};
   if (!lead || !lead.empresa) return res.status(400).json({ erro: "Lead sem empresa" });
 
   const q = `api_token=${encodeURIComponent(token)}`;
@@ -58,7 +69,7 @@ export default async function handler(req, res) {
       const v = parseValor(lead.valor); if (v != null) { patch.value = v; patch.currency = "BRL"; }
       if (stageId) patch.stage_id = Number(stageId);
       if (Object.keys(patch).length) await fetch(`${BASE}/deals/${dealId}?${q}`, jf({ m: "PUT", b: patch }));
-      await anexarAtaEtarefas(dealId, ata, q);
+      await anexarAtaEtarefas(dealId, ata, q, { dataReuniao, titulo: lead.empresa });
       return res.status(200).json({ ok: true, dealId, update_time: await updateTimeDe(dealId, q) });
     }
 
@@ -121,7 +132,7 @@ export default async function handler(req, res) {
     if (!deal.success) return res.status(502).json({ erro: "Falha ao criar negócio", detalhe: deal });
     const novoDealId = deal.data.id;
 
-    await anexarAtaEtarefas(novoDealId, ata, q);
+    await anexarAtaEtarefas(novoDealId, ata, q, { dataReuniao, titulo: lead.empresa });
 
     // Nota e atividades mudam o negocio: releia pra guardar o update_time FINAL.
     const updateTime = (await updateTimeDe(novoDealId, q)) || deal.data.update_time;

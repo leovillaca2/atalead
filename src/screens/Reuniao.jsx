@@ -153,7 +153,7 @@ export default function Reuniao() {
       const res = await enviarPipedrive({
         lead, ata: ataPayload, dealId: alvo, apenasAnexar: !!linkDealId,
         expectedUpdateTime: linkDealId ? undefined : updateTime,
-        force, pipelineId: pipelineSel, stageId: stageSel,
+        force, dataReuniao: reuniao.data, pipelineId: pipelineSel, stageId: stageSel,
       });
       if (res.conflito) { setConflito(res); return; }
       if (res.simulado) { setMsgEnvio(res.mensagem || "Modo seguro: nada foi escrito."); setCandidatos(null); return; }

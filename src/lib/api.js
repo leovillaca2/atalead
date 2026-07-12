@@ -104,9 +104,19 @@ export function concluirAtividadePipedrive({ dealId, activityId, feito = true })
   return post("/api/pipedrive-acao", { action: "atividade-feita", dealId, activityId, feito });
 }
 
-// Cria uma nova atividade no negocio no Pipedrive.
-export function novaAtividadePipedrive({ dealId, assunto, vencimento }) {
-  return post("/api/pipedrive-acao", { action: "atividade-nova", dealId, assunto, vencimento });
+// Cria uma nova atividade no negocio no Pipedrive (tipo, data, hora, duracao, nota).
+export function novaAtividadePipedrive({ dealId, assunto, tipo, data, hora, duracao, nota }) {
+  return post("/api/pipedrive-acao", { action: "atividade-nova", dealId, assunto, tipo, data, hora, duracao, nota });
+}
+
+// Edita uma atividade existente (assunto, tipo, data, hora, duracao, nota, feito).
+export function editarAtividadePipedrive({ dealId, activityId, assunto, tipo, data, hora, duracao, nota, feito }) {
+  return post("/api/pipedrive-acao", { action: "atividade-editar", dealId, activityId, assunto, tipo, data, hora, duracao, nota, feito });
+}
+
+// Tipos de atividade configurados no Pipedrive (ligacao, reuniao, tarefa...).
+export function tiposAtividadePipedrive() {
+  return get("/api/pipedrive-meta?tipo=tipos-atividade");
 }
 
 // Busca negocios ABERTOS da mesma empresa (pra evitar duplicar antes de criar).
@@ -121,8 +131,8 @@ export function setLabelPipedrive({ dealId, labelId }) {
 
 // Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.
 // apenasAnexar=true: vincula a um negocio existente (so anexa ata + tarefas, sem sobrescrever).
-export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, pipelineId, stageId }) {
-  return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, pipelineId, stageId });
+export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, dataReuniao, pipelineId, stageId }) {
+  return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, dataReuniao, pipelineId, stageId });
 }
 
 // Google Calendar: URL pra iniciar a conexao (leva o token do usuario no query).

@@ -53,14 +53,35 @@ export default async function handler(req, res) {
 
     if (action === "atividade-nova") {
       const assunto = (req.body.assunto || "").trim();
-      const { vencimento } = req.body;
+      const { tipo, data, hora, duracao, nota } = req.body;
       if (!assunto) return res.status(400).json({ erro: "Informe o assunto da atividade" });
       if (safeMode) return res.status(200).json({ ok: true, simulado: true });
       const b = { subject: assunto, deal_id: Number(dealId), done: 0 };
-      if (vencimento) b.due_date = vencimento;
+      if (tipo) b.type = tipo;
+      if (data) b.due_date = data;
+      if (hora) b.due_time = hora;
+      if (duracao) b.duration = duracao;
+      if (nota) b.note = nota;
       const r = await (await jpost(`${BASE}/activities?${q}`, b)).json();
       if (!r.success) return res.status(502).json({ erro: "Falha ao criar a atividade", detalhe: r });
       return res.status(200).json({ ok: true, id: r.data && r.data.id });
+    }
+
+    if (action === "atividade-editar") {
+      const { activityId, assunto, tipo, data, hora, duracao, nota, feito } = req.body;
+      if (!activityId) return res.status(400).json({ erro: "Informe a atividade" });
+      if (safeMode) return res.status(200).json({ ok: true, simulado: true });
+      const b = {};
+      if (assunto) b.subject = assunto;
+      if (tipo != null) b.type = tipo;
+      if (data) b.due_date = data;
+      if (hora != null) b.due_time = hora;
+      if (duracao != null) b.duration = duracao;
+      if (nota != null) b.note = nota;
+      if (typeof feito === "boolean") b.done = feito ? 1 : 0;
+      const r = await (await jput(`${BASE}/activities/${activityId}?${q}`, b)).json();
+      if (!r.success) return res.status(502).json({ erro: "Falha ao editar a atividade", detalhe: r });
+      return res.status(200).json({ ok: true });
     }
 
     return res.status(400).json({ erro: "ação inválida" });

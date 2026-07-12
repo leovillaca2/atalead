@@ -56,6 +56,11 @@ export default async function handler(req, res) {
       }
       return res.status(200).json({ negocios: negocios.slice(0, 10) });
     }
+    if (tipo === "tipos-atividade") {
+      const data = (await (await fetch(`${BASE}/activityTypes?${q}`)).json()).data || [];
+      const tipos = data.filter((t) => t.active_flag !== false).map((t) => ({ key: t.key_string, nome: t.name }));
+      return res.status(200).json({ tipos });
+    }
     if (tipo === "segmentos") {
       // Procura um campo (de negocio ou organizacao) que represente segmento/setor e devolve as opcoes.
       const alvo = /segment|setor|ind[uú]str|vertical|ramo|nicho/i;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
-import { dealPipedrive, adicionarNotaPipedrive, labelsPipedrive, setLabelPipedrive, concluirAtividadePipedrive, novaAtividadePipedrive } from "../lib/api.js";
+import { dealPipedrive, adicionarNotaPipedrive, labelsPipedrive, setLabelPipedrive, concluirAtividadePipedrive, novaAtividadePipedrive, editarAtividadePipedrive, tiposAtividadePipedrive } from "../lib/api.js";
 import { fmtValor } from "../lib/db.js";
 
 const fmtData = (s) => (s && s.length >= 10 ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : s || "");
@@ -26,13 +26,20 @@ export default function Negocio() {
 
   const [ativBusy, setAtivBusy] = useState(false);
   const [msgAtiv, setMsgAtiv] = useState("");
-  const [novoAtiv, setNovoAtiv] = useState("");
-  const [novoAtivData, setNovoAtivData] = useState("");
+  const [tiposAtiv, setTiposAtiv] = useState([]);
+  const VAZIA = { assunto: "", tipo: "", data: "", hora: "", duracao: "", nota: "" };
+  const [nova, setNova] = useState(VAZIA);
+  const [novaAberta, setNovaAberta] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [edit, setEdit] = useState(VAZIA);
 
   useEffect(() => {
     dealPipedrive(id).then((x) => { setD(x); setTempSel(x.label != null ? String(x.label) : ""); }).catch((e) => setErro(e.message || "Erro"));
     labelsPipedrive().then((r) => setLabels(r.labels || [])).catch(() => {});
+    tiposAtividadePipedrive().then((r) => setTiposAtiv(r.tipos || [])).catch(() => {});
   }, [id]);
+
+  async function refetch() { setD(await dealPipedrive(id)); }
 
   async function mudarTemp(v) {
     const anterior = tempSel;
@@ -68,31 +75,75 @@ export default function Negocio() {
     try {
       const r = await concluirAtividadePipedrive({ dealId: id, activityId: a.id, feito: true });
       if (r.simulado) { setMsgAtiv("Modo seguro: não gravou"); return; }
-      setD(await dealPipedrive(id));
+      await refetch();
     } catch (e) { setMsgAtiv(e.message || "Falha ao concluir"); }
     finally { setAtivBusy(false); }
   }
 
   async function addAtiv() {
-    if (!novoAtiv.trim()) return;
+    if (!nova.assunto.trim()) return;
     setAtivBusy(true); setMsgAtiv("");
     try {
-      const r = await novaAtividadePipedrive({ dealId: id, assunto: novoAtiv, vencimento: novoAtivData || null });
+      const r = await novaAtividadePipedrive({ dealId: id, ...nova });
       if (r.simulado) { setMsgAtiv("Modo seguro: não gravou"); return; }
-      setNovoAtiv(""); setNovoAtivData("");
-      setD(await dealPipedrive(id));
-      setMsgAtiv("Atividade adicionada no Pipedrive");
+      setNova(VAZIA); setNovaAberta(false); await refetch();
+      setMsgAtiv("Atividade criada no Pipedrive");
     } catch (e) { setMsgAtiv(e.message || "Falha ao adicionar"); }
     finally { setAtivBusy(false); }
   }
 
-  const linhaAtiv = (a, i, atrasada) => (
-    <div key={a.id || i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "var(--text2)", padding: "5px 0", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}>
-      <button className="chk" title="Marcar como concluída" onClick={() => concluirAtiv(a)} disabled={ativBusy || !a.id} style={{ flexShrink: 0 }} />
-      <span style={{ flex: 1, minWidth: 0 }}>{a.assunto}</span>
-      {a.vencimento && <span style={{ fontSize: 12, whiteSpace: "nowrap", color: atrasada ? "var(--danger)" : "var(--text3)" }}>{fmtData(a.vencimento)}</span>}
+  function abrirEdicao(a) {
+    setEditandoId(a.id);
+    setEdit({ assunto: a.assunto || "", tipo: a.tipo || "", data: a.vencimento || "", hora: (a.hora || "").slice(0, 5), duracao: (a.duracao || "").slice(0, 5), nota: a.nota || "" });
+  }
+  async function salvarEdicao() {
+    setAtivBusy(true); setMsgAtiv("");
+    try {
+      const r = await editarAtividadePipedrive({ dealId: id, activityId: editandoId, ...edit });
+      if (r.simulado) { setMsgAtiv("Modo seguro: não gravou"); return; }
+      setEditandoId(null); await refetch();
+    } catch (e) { setMsgAtiv(e.message || "Falha ao salvar"); }
+    finally { setAtivBusy(false); }
+  }
+
+  const camposAtiv = (v, set) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <input className="input" style={{ padding: "7px 10px" }} value={v.assunto} onChange={(e) => set({ ...v, assunto: e.target.value })} placeholder="Assunto" />
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <select className="input" style={{ padding: "7px 10px", flex: "1 1 110px", cursor: "pointer" }} value={v.tipo} onChange={(e) => set({ ...v, tipo: e.target.value })}>
+          <option value="">Tipo</option>
+          {tiposAtiv.map((t) => <option key={t.key} value={t.key}>{t.nome}</option>)}
+        </select>
+        <input className="input" type="date" style={{ padding: "7px 10px", flex: "1 1 120px", cursor: "pointer" }} value={v.data} onChange={(e) => set({ ...v, data: e.target.value })} />
+        <input className="input" type="time" style={{ padding: "7px 10px", flex: "0 1 92px", cursor: "pointer" }} value={v.hora} onChange={(e) => set({ ...v, hora: e.target.value })} title="Hora" />
+        <input className="input" type="time" style={{ padding: "7px 10px", flex: "0 1 92px", cursor: "pointer" }} value={v.duracao} onChange={(e) => set({ ...v, duracao: e.target.value })} title="Duração" />
+      </div>
+      <textarea className="textarea" style={{ minHeight: 46 }} value={v.nota} onChange={(e) => set({ ...v, nota: e.target.value })} placeholder="Anotação (opcional)" />
     </div>
   );
+
+  const linhaAtiv = (a, i, atrasada) => {
+    if (editandoId === a.id) {
+      return (
+        <div key={a.id} style={{ padding: "8px 0", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}>
+          {camposAtiv(edit, setEdit)}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+            <button className="btn" style={{ boxShadow: "none" }} onClick={() => setEditandoId(null)} disabled={ativBusy}>Cancelar</button>
+            <button className="btn primary" style={{ padding: "7px 12px" }} onClick={salvarEdicao} disabled={ativBusy}>Salvar</button>
+          </div>
+        </div>
+      );
+    }
+    const tnome = (tiposAtiv.find((t) => t.key === a.tipo) || {}).nome;
+    return (
+      <div key={a.id || i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "var(--text2)", padding: "5px 0", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}>
+        <button className="chk" title="Marcar como concluída" onClick={() => concluirAtiv(a)} disabled={ativBusy || !a.id} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1, minWidth: 0 }}>{a.assunto}{tnome ? ` · ${tnome}` : ""}</span>
+        {a.vencimento && <span style={{ fontSize: 12, whiteSpace: "nowrap", color: atrasada ? "var(--danger)" : "var(--text3)" }}>{fmtData(a.vencimento)}{a.hora ? " " + a.hora.slice(0, 5) : ""}</span>}
+        <button className="btn ghost icon-btn" title="Editar" onClick={() => abrirEdicao(a)} style={{ flexShrink: 0 }} disabled={ativBusy}><Icon name="edit" size={13} /></button>
+      </div>
+    );
+  };
 
   const totalAbertas = d ? d.proximasTotal + d.atrasadasTotal : 0;
 
@@ -165,14 +216,19 @@ export default function Negocio() {
                   {d.atividadesFeitas > 0 && <div style={{ fontSize: 12, color: "var(--text3)" }}>{d.atividadesFeitas} já concluídas</div>}
 
                   <div className="divider" style={{ margin: "2px 0" }} />
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <input className="input" style={{ padding: "8px 10px" }} value={novoAtiv} onChange={(e) => { setNovoAtiv(e.target.value); if (msgAtiv) setMsgAtiv(""); }} placeholder="Nova atividade..." />
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <input className="input" type="date" style={{ padding: "8px 10px", flex: 1, cursor: "pointer" }} value={novoAtivData} onChange={(e) => setNovoAtivData(e.target.value)} />
-                      <button className="btn primary" style={{ padding: "8px 12px", flexShrink: 0 }} disabled={ativBusy || !novoAtiv.trim()} onClick={addAtiv}>{ativBusy ? "..." : "Adicionar"}</button>
+                  {novaAberta ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="eyebrow">NOVA ATIVIDADE</div>
+                      {camposAtiv(nova, setNova)}
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button className="btn" style={{ boxShadow: "none" }} onClick={() => { setNovaAberta(false); setNova(VAZIA); }} disabled={ativBusy}>Cancelar</button>
+                        <button className="btn primary" style={{ padding: "7px 12px" }} onClick={addAtiv} disabled={ativBusy || !nova.assunto.trim()}>Adicionar</button>
+                      </div>
                     </div>
-                    {msgAtiv && <span style={{ fontSize: 12, color: msgAtiv.startsWith("Atividade") ? "var(--ok)" : "var(--text3)" }}>{msgAtiv}</span>}
-                  </div>
+                  ) : (
+                    <button className="btn" style={{ boxShadow: "none", color: "var(--primary)", alignSelf: "flex-start" }} onClick={() => { setNovaAberta(true); setMsgAtiv(""); }}><Icon name="plus" size={14} strokeWidth={2.2} /> Nova atividade</button>
+                  )}
+                  {msgAtiv && <span style={{ fontSize: 12, color: msgAtiv.startsWith("Atividade") ? "var(--ok)" : "var(--text3)" }}>{msgAtiv}</span>}
                 </div>
               </div>
 

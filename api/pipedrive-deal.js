@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     const atrasadas = abertas
       .filter((a) => a.due_date && a.due_date < hoje)
       .sort((a, b) => (b.due_date || "").localeCompare(a.due_date || ""));
-    const mapA = (a) => ({ id: a.id, assunto: a.subject, vencimento: a.due_date || null });
+    const mapA = (a) => ({ id: a.id, assunto: a.subject, tipo: a.type || "", vencimento: a.due_date || null, hora: a.due_time || "", duracao: a.duration || "", nota: limpar(a.note) });
     const notasOrd = notas.slice().sort((a, b) => (b.add_time || "").localeCompare(a.add_time || ""));
 
     return res.status(200).json({
