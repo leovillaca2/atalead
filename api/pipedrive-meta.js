@@ -29,6 +29,33 @@ export default async function handler(req, res) {
       const etapas = data.sort((a, b) => a.order_nr - b.order_nr).map((s) => ({ id: s.id, nome: s.name }));
       return res.status(200).json({ etapas });
     }
+    if (tipo === "negocios") {
+      // Negocios ABERTOS da mesma empresa (pra evitar duplicar na hora de criar).
+      const empresa = ((req.query && req.query.empresa) || "").trim();
+      if (empresa.length < 2) return res.status(200).json({ negocios: [] });
+      const busca = await (await fetch(`${BASE}/organizations/search?term=${encodeURIComponent(empresa)}&${q}`)).json();
+      const orgs = (((busca.data && busca.data.items) || []).map((i) => i.item).filter(Boolean)).slice(0, 5);
+      const vistos = new Set();
+      const negocios = [];
+      for (const o of orgs) {
+        const ds = ((await (await fetch(`${BASE}/organizations/${o.id}/deals?status=open&${q}`)).json()).data) || [];
+        for (const d of ds) {
+          if (vistos.has(d.id)) continue;
+          vistos.add(d.id);
+          negocios.push({
+            id: d.id,
+            titulo: d.title,
+            org: (d.org_id && d.org_id.name) || o.name || null,
+            contato: (d.person_id && d.person_id.name) || null,
+            dono: (d.user_id && d.user_id.name) || null,
+            valor: d.value || 0,
+            atualizado: (d.update_time || "").slice(0, 10),
+          });
+        }
+        if (negocios.length >= 10) break;
+      }
+      return res.status(200).json({ negocios: negocios.slice(0, 10) });
+    }
     if (tipo === "labels") {
       // O "termometro" do lead no Pipedrive e o campo Label do negocio (ex.: Quente/Morno/Frio).
       const campos = (await (await fetch(`${BASE}/dealFields?${q}`)).json()).data || [];

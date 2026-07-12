@@ -92,14 +92,20 @@ export function adicionarNotaPipedrive({ dealId, conteudo }) {
   return post("/api/pipedrive-acao", { action: "nota", dealId, conteudo });
 }
 
+// Busca negocios ABERTOS da mesma empresa (pra evitar duplicar antes de criar).
+export function buscarNegociosPipedrive({ empresa }) {
+  return get("/api/pipedrive-meta?tipo=negocios&empresa=" + encodeURIComponent(empresa || ""));
+}
+
 // Muda a temperatura (Label) do negocio no Pipedrive.
 export function setLabelPipedrive({ dealId, labelId }) {
   return post("/api/pipedrive-acao", { action: "label", dealId, labelId });
 }
 
 // Cria/atualiza o negocio no Pipedrive. Com dealId + expectedUpdateTime, checa conflito.
-export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId }) {
-  return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force, pipelineId, stageId });
+// apenasAnexar=true: vincula a um negocio existente (so anexa ata + tarefas, sem sobrescrever).
+export function enviarPipedrive({ lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, pipelineId, stageId }) {
+  return post("/api/enviar-pipedrive", { lead, ata, dealId, expectedUpdateTime, force, apenasAnexar, pipelineId, stageId });
 }
 
 // Google Calendar: URL pra iniciar a conexao (leva o token do usuario no query).

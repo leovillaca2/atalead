@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
 import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, salvarNotas, fmtValor } from "../lib/db.js";
-import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive } from "../lib/api.js";
+import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive, buscarNegociosPipedrive } from "../lib/api.js";
 
 const CAMPOS_LEAD = [
   ["empresa", "Empresa"], ["contato", "Contato"], ["cargo", "Cargo"],
@@ -22,6 +22,7 @@ export default function Reuniao() {
   const [enviando, setEnviando] = useState(false);
   const [msgEnvio, setMsgEnvio] = useState("");
   const [conflito, setConflito] = useState(null);
+  const [candidatos, setCandidatos] = useState(null);
 
   const [editando, setEditando] = useState(false);
   const [eResumo, setEResumo] = useState("");
@@ -107,16 +108,34 @@ export default function Reuniao() {
     finally { setSalvandoNotas(false); }
   }
 
-  async function enviar(force = false) {
+  // Clique no botao: se ainda nao vinculado, checa duplicados por empresa antes de criar.
+  async function onEnviar() {
+    if (jaTemDeal) return enviar({ force: false });
+    setEnviando(true); setMsgEnvio("");
+    let achou = [];
+    try { const r = await buscarNegociosPipedrive({ empresa: lead.empresa }); achou = r.negocios || []; }
+    catch { achou = []; }
+    setEnviando(false);
+    if (achou.length) { setCandidatos(achou); return; } // deixa o usuario escolher
+    enviar({ force: false });
+  }
+
+  async function enviar({ force = false, linkDealId = null } = {}) {
     setEnviando(true); setMsgEnvio("");
     try {
-      const res = await enviarPipedrive({ lead, ata, dealId, expectedUpdateTime: updateTime, force, pipelineId: pipelineSel, stageId: stageSel });
+      const alvo = linkDealId || dealId;
+      const res = await enviarPipedrive({
+        lead, ata, dealId: alvo, apenasAnexar: !!linkDealId,
+        expectedUpdateTime: linkDealId ? undefined : updateTime,
+        force, pipelineId: pipelineSel, stageId: stageSel,
+      });
       if (res.conflito) { setConflito(res); return; }
-      if (res.simulado) { setMsgEnvio(res.mensagem || "Modo seguro: nada foi escrito."); return; }
+      if (res.simulado) { setMsgEnvio(res.mensagem || "Modo seguro: nada foi escrito."); setCandidatos(null); return; }
       if (res.ok && res.dealId) {
         setDealId(res.dealId); setUpdateTime(res.update_time);
         await salvarVinculoPipedrive(id, { dealId: res.dealId, orgId: res.orgId, personId: res.personId, update_time: res.update_time });
-        setMsgEnvio(dealId ? "Atualizado no Pipedrive." : "Negócio criado no Pipedrive.");
+        setMsgEnvio(linkDealId ? "Ata anexada ao negócio existente no Pipedrive." : (dealId ? "Atualizado no Pipedrive." : "Negócio criado no Pipedrive."));
+        setCandidatos(null);
       }
     } catch (e) {
       setMsgEnvio(e.message || "Falha ao enviar.");
@@ -215,7 +234,7 @@ export default function Reuniao() {
                     </select>
                   </div>
                 )}
-                <button className="btn primary block" style={{ marginTop: 4 }} onClick={() => enviar(false)} disabled={enviando}>
+                <button className="btn primary block" style={{ marginTop: 4 }} onClick={onEnviar} disabled={enviando}>
                   <Icon name="arrow" size={15} strokeWidth={2.2} /><span>{enviando ? "Enviando..." : jaTemDeal ? "Atualizar no Pipedrive" : "Revisar e enviar ao Pipedrive"}</span>
                 </button>
                 <div style={{ fontSize: 12, color: "var(--text3)", textAlign: "center" }}>{msgEnvio || "Você confere os dados antes de criar o negócio"}</div>
@@ -272,7 +291,7 @@ export default function Reuniao() {
         onClose={() => setConflito(null)}
         footer={<>
           <button className="btn" onClick={() => setConflito(null)}>Cancelar</button>
-          <button className="btn primary" onClick={() => { setConflito(null); enviar(true); }}>Sobrescrever mesmo assim</button>
+          <button className="btn primary" onClick={() => { setConflito(null); enviar({ force: true }); }}>Sobrescrever mesmo assim</button>
         </>}
       >
         <p>Alguém alterou este negócio no Pipedrive depois da última vez que o AtaLead sincronizou. Se continuar, os dados do AtaLead vão sobrescrever o que está lá.</p>
@@ -282,6 +301,29 @@ export default function Reuniao() {
             <div className="box novo"><h4>O AtaLead vai gravar</h4><div>{lead.empresa} — proposta</div><div style={{ marginTop: 4, fontWeight: 600 }}>{lead.valor || "—"}</div></div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={!!candidatos}
+        title="Essa empresa já tem negócio no Pipedrive"
+        onClose={() => setCandidatos(null)}
+        footer={<>
+          <button className="btn" onClick={() => setCandidatos(null)}>Cancelar</button>
+          <button className="btn primary" onClick={() => enviar({ force: false })} disabled={enviando}>Criar um novo mesmo assim</button>
+        </>}
+      >
+        <p>Encontramos negócios abertos dessa empresa. Você pode anexar esta ata e os próximos passos a um deles, em vez de criar um negócio duplicado.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+          {(candidatos || []).map((c) => (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600 }}>{c.titulo}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>{[c.contato, c.dono, c.valor > 0 ? fmtValor(c.valor) : null, c.atualizado ? "atualizado " + c.atualizado : null].filter(Boolean).join(" · ")}</div>
+              </div>
+              <button className="btn primary" style={{ padding: "7px 12px", flexShrink: 0 }} onClick={() => enviar({ linkDealId: c.id })} disabled={enviando}>Usar este</button>
+            </div>
+          ))}
+        </div>
       </Modal>
     </div>
   );

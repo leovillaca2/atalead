@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
-import { gerarAta } from "../lib/api.js";
+import { gerarAta, buscarNegociosPipedrive } from "../lib/api.js";
 import { criarReuniaoCompleta } from "../lib/db.js";
 import { extrairTexto } from "../lib/extrair.js";
 
@@ -30,6 +30,7 @@ export default function NovaReuniao() {
   const [arquivo, setArquivo] = useState("");
   const [lendo, setLendo] = useState(false);
   const [progresso, setProgresso] = useState(0);
+  const [existentes, setExistentes] = useState(0);
 
   useEffect(() => {
     const ev = loc.state && loc.state.evento;
@@ -71,6 +72,16 @@ export default function NovaReuniao() {
     }, 150);
     return () => clearInterval(id);
   }, [estado]);
+
+  // Aviso cedo: essa empresa ja tem negocio no Pipedrive? (a decisao real e no envio)
+  useEffect(() => {
+    const emp = leadEmpresa.trim();
+    if (emp.length < 2) { setExistentes(0); return; }
+    const t = setTimeout(() => {
+      buscarNegociosPipedrive({ empresa: emp }).then((r) => setExistentes((r.negocios || []).length)).catch(() => {});
+    }, 600);
+    return () => clearTimeout(t);
+  }, [leadEmpresa]);
 
   const setP = (i, campo, v) => setParticipantes((ps) => ps.map((p, k) => (k === i ? { ...p, [campo]: v } : p)));
   const addP = () => setParticipantes((ps) => [...ps, { nome: "", empresa: "", papel: "", email: "" }]);
@@ -145,6 +156,11 @@ export default function NovaReuniao() {
             <input className="input" style={{ flex: 1, minWidth: 180 }} value={leadContato} onChange={(e) => setLeadContato(e.target.value)} placeholder="Contato (pessoa)" />
           </div>
           {doEvento && <div style={{ fontSize: 12, color: "var(--text3)" }}>Deduzido dos convidados de fora da PGMais. Ajuste se precisar.</div>}
+          {existentes > 0 && (
+            <div style={{ fontSize: 12, color: "var(--primary)", background: "var(--primary-soft)", padding: "8px 10px", borderRadius: 8 }}>
+              Essa empresa já tem {existentes} negócio{existentes > 1 ? "s" : ""} aberto{existentes > 1 ? "s" : ""} no Pipedrive. Na hora de enviar a ata, você poderá anexar a um deles em vez de criar outro.
+            </div>
+          )}
         </div>
 
         <div className="field">
