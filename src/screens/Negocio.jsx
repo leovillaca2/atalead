@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
-import { dealPipedrive, adicionarNotaPipedrive, labelsPipedrive, setLabelPipedrive, concluirAtividadePipedrive, novaAtividadePipedrive, editarAtividadePipedrive, tiposAtividadePipedrive } from "../lib/api.js";
+import { dealPipedrive, adicionarNotaPipedrive, labelsPipedrive, setLabelPipedrive, concluirAtividadePipedrive, novaAtividadePipedrive, editarAtividadePipedrive, tiposAtividadePipedrive, criarEventoGoogle } from "../lib/api.js";
 import { fmtValor } from "../lib/db.js";
 
 const fmtData = (s) => (s && s.length >= 10 ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : s || "");
+const pad = (n) => String(n).padStart(2, "0");
+function fimEvento(data, hora, dur) {
+  let addMin = 30;
+  if (dur && /^\d{1,2}:\d{2}$/.test(dur)) { const [dh, dm] = dur.split(":").map(Number); addMin = dh * 60 + dm; }
+  const d = new Date(`${data}T${hora}:00`);
+  d.setMinutes(d.getMinutes() + addMin);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+}
 const CORES = { green: "#15803D", red: "#B4231C", yellow: "#B45309", purple: "#7C3AED", blue: "#1D5FD1", gray: "#7E9196", "dark-gray": "#4B5563", orange: "#C2410C", pink: "#DB2777", "light-blue": "#0EA5E9" };
 
 export default function Negocio() {
@@ -27,7 +35,7 @@ export default function Negocio() {
   const [ativBusy, setAtivBusy] = useState(false);
   const [msgAtiv, setMsgAtiv] = useState("");
   const [tiposAtiv, setTiposAtiv] = useState([]);
-  const VAZIA = { assunto: "", tipo: "", data: "", hora: "", duracao: "", nota: "" };
+  const VAZIA = { assunto: "", tipo: "", data: "", hora: "", duracao: "", nota: "", agendar: false };
   const [nova, setNova] = useState(VAZIA);
   const [novaAberta, setNovaAberta] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
@@ -86,8 +94,17 @@ export default function Negocio() {
     try {
       const r = await novaAtividadePipedrive({ dealId: id, ...nova });
       if (r.simulado) { setMsgAtiv("Modo seguro: não gravou"); return; }
+      let msg = "Atividade criada no Pipedrive";
+      if (nova.agendar && nova.data && nova.hora) {
+        try {
+          await criarEventoGoogle({ titulo: nova.assunto, inicio: `${nova.data}T${nova.hora}:00`, fim: fimEvento(nova.data, nova.hora, nova.duracao), descricao: nova.nota || undefined });
+          msg = "Atividade criada no Pipedrive e agendada no Google";
+        } catch (e) { msg = "Atividade criada. Falha ao agendar no Google: " + (e.message || ""); }
+      } else if (nova.agendar) {
+        msg = "Atividade criada. Pra agendar no Google, informe data e hora.";
+      }
       setNova(VAZIA); setNovaAberta(false); await refetch();
-      setMsgAtiv("Atividade criada no Pipedrive");
+      setMsgAtiv(msg);
     } catch (e) { setMsgAtiv(e.message || "Falha ao adicionar"); }
     finally { setAtivBusy(false); }
   }
@@ -220,6 +237,10 @@ export default function Negocio() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <div className="eyebrow">NOVA ATIVIDADE</div>
                       {camposAtiv(nova, setNova)}
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text2)", cursor: "pointer" }}>
+                        <input type="checkbox" checked={!!nova.agendar} onChange={(e) => setNova((v) => ({ ...v, agendar: e.target.checked }))} />
+                        Agendar no Google Calendar (precisa de data e hora)
+                      </label>
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         <button className="btn" style={{ boxShadow: "none" }} onClick={() => { setNovaAberta(false); setNova(VAZIA); }} disabled={ativBusy}>Cancelar</button>
                         <button className="btn primary" style={{ padding: "7px 12px" }} onClick={addAtiv} disabled={ativBusy || !nova.assunto.trim()}>Adicionar</button>
