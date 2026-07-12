@@ -29,6 +29,7 @@ export default function Reuniao() {
   const [editando, setEditando] = useState(false);
   const [eResumo, setEResumo] = useState("");
   const [eLead, setELead] = useState({});
+  const [eAnalise, setEAnalise] = useState({ nota: "", temperatura: "", probabilidade: "", comentario: "" });
   const [salvandoEdit, setSalvandoEdit] = useState(false);
 
   const [funis, setFunis] = useState([]);
@@ -46,6 +47,7 @@ export default function Reuniao() {
         setDados(d); setPassos(d.passos);
         setEResumo((d.ata && d.ata.resumo) || "");
         setELead({ ...((d.ata && d.ata.lead) || {}) });
+        { const an = (d.ata && d.ata.analise) || {}; setEAnalise({ nota: an.nota ?? "", temperatura: an.temperatura || "", probabilidade: an.probabilidade || "", comentario: an.comentario || "" }); }
         setDealId(d.reuniao.pipedrive_deal_id || null);
         setUpdateTime(d.reuniao.pipedrive_update_time || null);
         setNotas(d.reuniao.notas || "");
@@ -90,14 +92,22 @@ export default function Reuniao() {
   function iniciarEdicao() {
     setEResumo(ata ? ata.resumo || "" : "");
     setELead({ ...lead });
+    const an = (ata && ata.analise) || {};
+    setEAnalise({ nota: an.nota ?? "", temperatura: an.temperatura || "", probabilidade: an.probabilidade || "", comentario: an.comentario || "" });
     setEditando(true);
   }
   async function salvarEdicao() {
     if (!ata) return;
     setSalvandoEdit(true);
     try {
-      await updateAta(ata.id, { resumo: eResumo, lead: eLead });
-      setDados((d) => ({ ...d, ata: { ...d.ata, resumo: eResumo, lead: { ...eLead } } }));
+      const analise = {
+        nota: eAnalise.nota === "" || eAnalise.nota === null ? null : Number(eAnalise.nota),
+        temperatura: eAnalise.temperatura || null,
+        probabilidade: eAnalise.probabilidade || null,
+        comentario: eAnalise.comentario || null,
+      };
+      await updateAta(ata.id, { resumo: eResumo, lead: eLead, analise });
+      setDados((d) => ({ ...d, ata: { ...d.ata, resumo: eResumo, lead: { ...eLead }, analise } }));
       setEditando(false);
     } catch (e) { setMsgEnvio(e.message || "Falha ao salvar."); }
     finally { setSalvandoEdit(false); }
@@ -199,7 +209,29 @@ export default function Reuniao() {
               </div>
             ))}</div></>)}
             {produtos.length > 0 && (<><div className="divider" /><div className="ata-block"><div className="eyebrow">PRODUTOS PARA A PROPOSTA</div><div className="tags">{produtos.map((p, i) => <span className="tag" key={i}>{p}</span>)}</div></div></>)}
-            {ata?.analise && (ata.analise.nota > 0 || ata.analise.temperatura || ata.analise.probabilidade || ata.analise.comentario) && (<>
+            {editando ? (<>
+              <div className="divider" />
+              <div className="ata-block">
+                <div className="eyebrow">ANÁLISE</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                  <div className="field" style={{ flex: "0 0 110px" }}>
+                    <label style={{ fontSize: 12, color: "var(--text2)" }}>Nota (0-10)</label>
+                    <input className="input" style={{ padding: "8px 11px" }} type="number" min="0" max="10" value={eAnalise.nota} onChange={(e) => setEAnalise((a) => ({ ...a, nota: e.target.value }))} />
+                  </div>
+                  <div className="field" style={{ flex: "0 0 150px" }}>
+                    <label style={{ fontSize: 12, color: "var(--text2)" }}>Temperatura</label>
+                    <select className="input" style={{ padding: "8px 11px", cursor: "pointer" }} value={eAnalise.temperatura} onChange={(e) => setEAnalise((a) => ({ ...a, temperatura: e.target.value }))}>
+                      <option value="">-</option><option value="frio">Frio</option><option value="morno">Morno</option><option value="quente">Quente</option>
+                    </select>
+                  </div>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                    <label style={{ fontSize: 12, color: "var(--text2)" }}>Probabilidade</label>
+                    <input className="input" style={{ padding: "8px 11px" }} value={eAnalise.probabilidade} onChange={(e) => setEAnalise((a) => ({ ...a, probabilidade: e.target.value }))} placeholder="ex: alta, média, 60%" />
+                  </div>
+                </div>
+                <textarea className="textarea" style={{ minHeight: 80 }} value={eAnalise.comentario} onChange={(e) => setEAnalise((a) => ({ ...a, comentario: e.target.value }))} placeholder="Comentário sobre a apresentação e o lead" />
+              </div>
+            </>) : (ata?.analise && (ata.analise.nota > 0 || ata.analise.temperatura || ata.analise.probabilidade || ata.analise.comentario) && (<>
               <div className="divider" />
               <div className="ata-block">
                 <div className="eyebrow">ANÁLISE</div>
@@ -215,7 +247,7 @@ export default function Reuniao() {
                 </div>
                 {ata.analise.comentario && <p className="ata-p">{ata.analise.comentario}</p>}
               </div>
-            </>)}
+            </>))}
           </div>
         </div>
 
