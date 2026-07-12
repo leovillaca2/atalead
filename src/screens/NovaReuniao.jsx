@@ -25,6 +25,7 @@ export default function NovaReuniao() {
   const [leadEmpresa, setLeadEmpresa] = useState("");
   const [leadContato, setLeadContato] = useState("");
   const [doEvento, setDoEvento] = useState(false);
+  const [eventoId, setEventoId] = useState(null);
   const [estado, setEstado] = useState("idle");
   const [erro, setErro] = useState("");
   const [arquivo, setArquivo] = useState("");
@@ -36,6 +37,7 @@ export default function NovaReuniao() {
     const ev = loc.state && loc.state.evento;
     if (!ev) return;
     setDoEvento(true);
+    if (ev.id) setEventoId(ev.id);
     if (ev.titulo) setTitulo(ev.titulo);
     const parts = (ev.participantes || []).map((p) => ({ nome: p.nome || "", empresa: p.empresa || "", papel: "", email: p.email || "" }));
     if (parts.length) setParticipantes(parts);
@@ -119,7 +121,7 @@ export default function NovaReuniao() {
       const temParts = participantes.some((p) => p.nome && p.nome.trim());
       const partsFinal = temParts ? participantes : (Array.isArray(ata.participantes) && ata.participantes.length ? ata.participantes : participantes);
       setEstado("salvando");
-      const reuniaoId = await criarReuniaoCompleta({ titulo: tituloFinal, participantes: partsFinal, transcricao, ata });
+      const reuniaoId = await criarReuniaoCompleta({ titulo: tituloFinal, participantes: partsFinal, transcricao, ata, googleEventId: eventoId });
       nav(`/reuniao/${reuniaoId}`);
     } catch (e) {
       setErro(e.message || "Falha ao gerar a ata.");

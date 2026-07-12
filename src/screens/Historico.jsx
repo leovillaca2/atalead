@@ -13,6 +13,13 @@ function Stat({ label, valor }) {
   );
 }
 
+const STATUS = {
+  ata_gerada: { label: "Ata gerada", cls: "ok" },
+  agendada: { label: "Agendada", cls: "muted" },
+  cancelada: { label: "Cancelada", cls: "muted" },
+  nova: { label: "Nova", cls: "muted" },
+};
+
 const COLS = [
   { h: "Data", k: (r) => r.data || (r.created_at || "").slice(0, 10) },
   { h: "Título", k: (r) => r.titulo || "" },
@@ -20,7 +27,7 @@ const COLS = [
   { h: "Contato", k: (r) => (r.prospects && r.prospects.contato) || "" },
   { h: "Participantes", k: (r) => (r.participantes && r.participantes[0] && r.participantes[0].count) ?? 0 },
   { h: "Próximos passos", k: (r) => (r.proximos_passos && r.proximos_passos[0] && r.proximos_passos[0].count) ?? 0 },
-  { h: "Status", k: (r) => r.status || "" },
+  { h: "Status", k: (r) => (STATUS[r.status] && STATUS[r.status].label) || r.status || "" },
   { h: "No Pipedrive", k: (r) => (r.pipedrive_deal_id ? "Sim" : "Não") },
   { h: "Valor estimado", k: (r) => ((r.prospects && r.prospects.valor_estimado) || "") },
 ];
@@ -42,12 +49,10 @@ export default function Historico() {
   if (erro) return <div className="screen" style={{ color: "var(--danger)" }}>{erro}</div>;
   if (!todas) return <div className="screen" style={{ color: "var(--text3)" }}>Carregando…</div>;
 
-  const now = new Date();
-  const noMes = todas.filter((r) => {
-    const d = new Date(r.created_at);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
+  const mesAtual = new Date().toISOString().slice(0, 7);
+  const noMes = todas.filter((r) => (r.data || r.created_at || "").slice(0, 7) === mesAtual).length;
   const valorTotal = todas.reduce((s, r) => s + ((r.prospects && r.prospects.valor_estimado) || 0), 0);
+  function abrir(r) { if (r.status === "ata_gerada") nav(`/reuniao/${r.id}`); else nav("/"); }
 
   const b = busca.trim().toLowerCase();
   const lista = b
@@ -141,10 +146,10 @@ export default function Historico() {
       <div className="card" style={{ overflow: "hidden" }}>
         {lista.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--text3)", fontSize: 13 }}>Nenhuma reunião encontrada.</div>}
         {lista.map((r) => (
-          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 18px", borderBottom: "1px solid var(--border)" }}>
-            <div onClick={() => nav(`/reuniao/${r.id}`)} style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, cursor: "pointer" }}>
+          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 18px", borderBottom: "1px solid var(--border)", opacity: r.status === "cancelada" ? 0.55 : 1 }}>
+            <div onClick={() => abrir(r)} style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, cursor: "pointer" }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--primary-soft)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                <Icon name="doc" size={16} />
+                <Icon name={r.status === "ata_gerada" ? "doc" : "calendar"} size={16} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.titulo}</div>
@@ -152,6 +157,7 @@ export default function Historico() {
                   {(r.prospects && r.prospects.empresa) || "—"}{r.data ? " · " + r.data : ""}
                 </div>
               </div>
+              <span className={"pill " + ((STATUS[r.status] && STATUS[r.status].cls) || "muted")} style={{ fontSize: 11, flexShrink: 0 }}>{(STATUS[r.status] && STATUS[r.status].label) || r.status}</span>
               {r.prospects && r.prospects.valor_estimado > 0 && (
                 <span style={{ fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{fmtValor(r.prospects.valor_estimado)}</span>
               )}

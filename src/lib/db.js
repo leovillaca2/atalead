@@ -78,10 +78,41 @@ export async function listarReunioes() {
   return run(() =>
     supabase
       .from("reunioes")
-      .select("id, titulo, data, created_at, status, notas, pipedrive_deal_id, prospects(empresa, contato, valor_estimado), participantes(count), proximos_passos(count)")
+      .select("id, titulo, data, created_at, status, notas, google_event_id, pipedrive_deal_id, prospects(empresa, contato, valor_estimado), participantes(count), proximos_passos(count)")
+      .order("data", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(300)
+      .limit(400)
   ) || [];
+}
+
+// Sincroniza os eventos do Google com os registros do AtaLead (chamado ao abrir o Calendario).
+// Insere os que faltam como 'agendada' e marca 'cancelada' os que sumiram do Google (na janela).
+export async function sincronizarAgenda(eventos) {
+  if (!Array.isArray(eventos)) return;
+  const existentes = await run(() =>
+    supabase.from("reunioes").select("id, google_event_id, status, data").not("google_event_id", "is", null)
+  ) || [];
+  const porEvento = {};
+  existentes.forEach((r) => { porEvento[r.google_event_id] = r; });
+
+  const novos = eventos
+    .filter((e) => e.id && !porEvento[e.id])
+    .map((e) => ({
+      titulo: e.titulo || "(sem título)",
+      data: (e.inicio || "").slice(0, 10) || null,
+      origem: "calendario",
+      status: "agendada",
+      google_event_id: e.id,
+    }));
+  if (novos.length) await run(() => supabase.from("reunioes").insert(novos).select());
+
+  // Reconciliar cancelamentos: agendadas dentro da janela (-7d/+30d) que sumiram do Google.
+  const presentes = new Set(eventos.map((e) => e.id));
+  const hoje = new Date();
+  const min = new Date(hoje.getTime() - 7 * 864e5).toISOString().slice(0, 10);
+  const max = new Date(hoje.getTime() + 30 * 864e5).toISOString().slice(0, 10);
+  const sumiram = existentes.filter((r) => r.status === "agendada" && !presentes.has(r.google_event_id) && r.data && r.data >= min && r.data <= max);
+  for (const r of sumiram) await run(() => supabase.from("reunioes").update({ status: "cancelada" }).eq("id", r.id).select());
 }
 
 // Exclui a reuniao e tudo dela (participantes/atas/passos caem por cascade). Nao mexe no Pipedrive.
@@ -111,7 +142,7 @@ export async function salvarVinculoPipedrive(reuniaoId, v) {
   );
 }
 
-export async function criarReuniaoCompleta({ titulo, participantes, transcricao, ata }) {
+export async function criarReuniaoCompleta({ titulo, participantes, transcricao, ata, googleEventId }) {
   const lead = (ata && ata.lead) || {};
 
   const prospect = await run(() =>
@@ -125,12 +156,26 @@ export async function criarReuniaoCompleta({ titulo, participantes, transcricao,
     }).select().single()
   );
 
-  const reuniao = await run(() =>
-    supabase.from("reunioes").insert({
-      prospect_id: prospect.id, titulo, transcricao, origem: "colar", status: "ata_gerada",
-      data: new Date().toISOString().slice(0, 10),
-    }).select().single()
-  );
+  // Se veio de um evento do calendario ja registrado, ATUALIZA aquele registro (nao duplica).
+  let reuniao = null;
+  if (googleEventId) {
+    const existente = await run(() => supabase.from("reunioes").select("id").eq("google_event_id", googleEventId).maybeSingle());
+    if (existente) {
+      reuniao = await run(() =>
+        supabase.from("reunioes").update({
+          prospect_id: prospect.id, titulo, transcricao, origem: "calendario", status: "ata_gerada",
+        }).eq("id", existente.id).select().single()
+      );
+    }
+  }
+  if (!reuniao) {
+    reuniao = await run(() =>
+      supabase.from("reunioes").insert({
+        prospect_id: prospect.id, titulo, transcricao, origem: googleEventId ? "calendario" : "colar", status: "ata_gerada",
+        data: new Date().toISOString().slice(0, 10), google_event_id: googleEventId || null,
+      }).select().single()
+    );
+  }
 
   const parts = (participantes || []).filter((p) => p && p.nome);
   if (parts.length) {

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
 import { googleEventos, googleConectarUrl, criarEventoGoogle, excluirEventoGoogle } from "../lib/api.js";
+import { sincronizarAgenda } from "../lib/db.js";
 
 function fmtData(iso) {
   if (!iso) return "";
@@ -46,18 +47,27 @@ export default function Calendario() {
   const [paraCancelar, setParaCancelar] = useState(null);
   const [cancelando, setCancelando] = useState(false);
   const [expandido, setExpandido] = useState(null);
+  const [sincronizando, setSincronizando] = useState(false);
 
   function carregar() {
     return googleEventos()
       .then((d) => {
         if (!d.conectado) { setEstado("desconectado"); if (d.erro) setErro("Reconecte sua conta Google."); }
-        else { setEventos(d.eventos || []); setEstado("ok"); }
+        else {
+          setEventos(d.eventos || []); setEstado("ok");
+          sincronizarAgenda(d.eventos || []).catch(() => {}); // registra no AtaLead em segundo plano
+        }
       })
       .catch((e) => { setErro(e.message || "Erro"); setEstado("desconectado"); });
   }
   useEffect(() => { carregar(); }, []);
 
   async function conectar() { window.location.href = await googleConectarUrl(); }
+
+  async function sincronizar() {
+    setSincronizando(true);
+    try { await carregar(); } finally { setSincronizando(false); }
+  }
 
   async function agendar() {
     setErroForm("");
@@ -104,7 +114,8 @@ export default function Calendario() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {estado === "ok" && <button className="btn primary" onClick={() => setForm(true)}><Icon name="plus" size={15} strokeWidth={2.2} /><span>Agendar reunião</span></button>}
-          {estado === "ok" && <button className="btn" onClick={conectar} title="Reconectar"><Icon name="calendar" size={15} /></button>}
+          {estado === "ok" && <button className="btn" onClick={sincronizar} disabled={sincronizando} title="Atualizar com o Google Calendar">{sincronizando ? <span className="spinner" /> : <Icon name="refresh" size={15} />}<span>Sincronizar</span></button>}
+          {estado === "ok" && <button className="btn icon-btn" onClick={conectar} title="Reconectar conta Google"><Icon name="calendar" size={15} /></button>}
         </div>
       </div>
 
