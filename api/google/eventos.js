@@ -28,6 +28,13 @@ export default async function handler(req, res) {
     .replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
     .replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 
+  const GENERICOS = new Set(["gmail", "hotmail", "outlook", "live", "yahoo", "icloud", "aol", "proton", "protonmail", "msn", "bol", "uol", "terra", "ig", "me", "globo"]);
+  const empresaDe = (email) => {
+    const w = (((email || "").split("@")[1] || "").split(".")[0] || "").toLowerCase();
+    if (!w || GENERICOS.has(w)) return "";
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  };
+
   const eventos = (data.items || []).map((e) => ({
     id: e.id,
     titulo: e.summary || "(sem título)",
@@ -44,7 +51,7 @@ export default async function handler(req, res) {
       .map((a) => ({
         nome: a.displayName || (a.email ? a.email.split("@")[0] : ""),
         email: a.email || "",
-        empresa: a.email ? (a.email.split("@")[1] || "").split(".")[0] : "",
+        empresa: empresaDe(a.email),
         status: a.responseStatus || "needsAction",
         organizador: !!a.organizer,
       })),

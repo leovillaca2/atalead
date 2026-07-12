@@ -6,11 +6,14 @@ import { criarReuniaoCompleta } from "../lib/db.js";
 import { extrairTexto } from "../lib/extrair.js";
 
 const OWN_DOMAIN = "pgmais.com.br"; // dominio do seu time; outros = lado do lead
+// Provedores de e-mail pessoal: nao servem pra deduzir empresa.
+const GENERICOS = new Set(["gmail", "hotmail", "outlook", "live", "yahoo", "icloud", "aol", "proton", "protonmail", "msn", "bol", "uol", "terra", "ig", "me", "globo"]);
 
 function empresaDoEmail(email) {
   const dom = (email.split("@")[1] || "").toLowerCase();
   const w = dom.split(".")[0];
-  return w ? w.charAt(0).toUpperCase() + w.slice(1) : "";
+  if (!w || GENERICOS.has(w)) return ""; // e-mail pessoal: deixa em branco pra preencher
+  return w.charAt(0).toUpperCase() + w.slice(1);
 }
 function ehTime(email) {
   return !!email && email.toLowerCase().endsWith("@" + OWN_DOMAIN);
