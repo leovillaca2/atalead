@@ -1,8 +1,10 @@
 // FUNÇÃO DE SERVIDOR. Ações de ESCRITA num negocio do Pipedrive. Exige login.
-// Respeita o MODO SEGURO (PIPEDRIVE_SAFE_MODE != "false" nao grava).
-// POST { action: "nota"|"label", dealId, ... }
-//   nota:  { conteudo }
-//   label: { labelId }   (id da opcao do campo Label; null/"" limpa)
+// MODO SEGURO só se PIPEDRIVE_SAFE_MODE === "true" (escrita ligada por padrao).
+// POST { action, dealId, ... }
+//   nota:            { conteudo }
+//   label:           { labelId }   (id da opcao do campo Label; null/"" limpa)
+//   atividade-feita: { activityId, feito }
+//   atividade-nova:  { assunto, vencimento }  (vencimento YYYY-MM-DD, opcional)
 import { exigirLogin } from "../server/google.js";
 
 const BASE = "https://api.pipedrive.com/v1";
@@ -16,7 +18,7 @@ export default async function handler(req, res) {
   const { action, dealId } = req.body || {};
   if (!dealId) return res.status(400).json({ erro: "Informe o negócio" });
 
-  const safeMode = process.env.PIPEDRIVE_SAFE_MODE !== "false";
+  const safeMode = process.env.PIPEDRIVE_SAFE_MODE === "true"; // escrita ligada por padrao
   const q = `api_token=${encodeURIComponent(token)}`;
   const jpost = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const jput = (url, body) => fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -38,6 +40,27 @@ export default async function handler(req, res) {
       const r = await (await jput(`${BASE}/deals/${dealId}?${q}`, { label: valor })).json();
       if (!r.success) return res.status(502).json({ erro: "Falha ao mudar a temperatura", detalhe: r });
       return res.status(200).json({ ok: true, label: r.data && r.data.label, update_time: r.data && r.data.update_time });
+    }
+
+    if (action === "atividade-feita") {
+      const { activityId, feito } = req.body;
+      if (!activityId) return res.status(400).json({ erro: "Informe a atividade" });
+      if (safeMode) return res.status(200).json({ ok: true, simulado: true });
+      const r = await (await jput(`${BASE}/activities/${activityId}?${q}`, { done: feito ? 1 : 0 })).json();
+      if (!r.success) return res.status(502).json({ erro: "Falha ao atualizar a atividade", detalhe: r });
+      return res.status(200).json({ ok: true });
+    }
+
+    if (action === "atividade-nova") {
+      const assunto = (req.body.assunto || "").trim();
+      const { vencimento } = req.body;
+      if (!assunto) return res.status(400).json({ erro: "Informe o assunto da atividade" });
+      if (safeMode) return res.status(200).json({ ok: true, simulado: true });
+      const b = { subject: assunto, deal_id: Number(dealId), done: 0 };
+      if (vencimento) b.due_date = vencimento;
+      const r = await (await jpost(`${BASE}/activities?${q}`, b)).json();
+      if (!r.success) return res.status(502).json({ erro: "Falha ao criar a atividade", detalhe: r });
+      return res.status(200).json({ ok: true, id: r.data && r.data.id });
     }
 
     return res.status(400).json({ erro: "ação inválida" });

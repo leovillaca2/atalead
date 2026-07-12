@@ -92,6 +92,16 @@ export function adicionarNotaPipedrive({ dealId, conteudo }) {
   return post("/api/pipedrive-acao", { action: "nota", dealId, conteudo });
 }
 
+// Conclui (ou reabre) uma atividade do negocio no Pipedrive.
+export function concluirAtividadePipedrive({ dealId, activityId, feito = true }) {
+  return post("/api/pipedrive-acao", { action: "atividade-feita", dealId, activityId, feito });
+}
+
+// Cria uma nova atividade no negocio no Pipedrive.
+export function novaAtividadePipedrive({ dealId, assunto, vencimento }) {
+  return post("/api/pipedrive-acao", { action: "atividade-nova", dealId, assunto, vencimento });
+}
+
 // Busca negocios ABERTOS da mesma empresa (pra evitar duplicar antes de criar).
 export function buscarNegociosPipedrive({ empresa }) {
   return get("/api/pipedrive-meta?tipo=negocios&empresa=" + encodeURIComponent(empresa || ""));
@@ -119,6 +129,14 @@ export async function googleEventos() {
   const res = await fetchT("/api/google/eventos", { headers: await bearer() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.erro || "Falha ao ler o calendário");
+  return data;
+}
+
+// Cancela (apaga) um evento no Google Calendar, avisando os participantes.
+export async function excluirEventoGoogle(eventId) {
+  const res = await fetchT("/api/google/criar-evento?id=" + encodeURIComponent(eventId), { method: "DELETE", headers: await bearer() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erro || "Falha ao cancelar o evento");
   return data;
 }
 

@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   const q = `api_token=${encodeURIComponent(token)}`;
   const pipelineId = ppBody || process.env.PIPEDRIVE_PIPELINE_ID || "1";
   const stageId = stBody || process.env.PIPEDRIVE_STAGE_ID || null;
-  const safeMode = process.env.PIPEDRIVE_SAFE_MODE !== "false";
+  const safeMode = process.env.PIPEDRIVE_SAFE_MODE === "true"; // escrita ligada por padrao
 
   try {
     // A) VINCULAR a um negocio existente: so anexa ata + tarefas (nao sobrescreve nada dele).

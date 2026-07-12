@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
-import { dealPipedrive, adicionarNotaPipedrive, labelsPipedrive, setLabelPipedrive } from "../lib/api.js";
+import { dealPipedrive, adicionarNotaPipedrive, labelsPipedrive, setLabelPipedrive, concluirAtividadePipedrive, novaAtividadePipedrive } from "../lib/api.js";
 import { fmtValor } from "../lib/db.js";
 
 const fmtData = (s) => (s && s.length >= 10 ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : s || "");
@@ -23,6 +23,11 @@ export default function Negocio() {
   const [tempSel, setTempSel] = useState("");
   const [salvandoTemp, setSalvandoTemp] = useState(false);
   const [msgTemp, setMsgTemp] = useState("");
+
+  const [ativBusy, setAtivBusy] = useState(false);
+  const [msgAtiv, setMsgAtiv] = useState("");
+  const [novoAtiv, setNovoAtiv] = useState("");
+  const [novoAtivData, setNovoAtivData] = useState("");
 
   useEffect(() => {
     dealPipedrive(id).then((x) => { setD(x); setTempSel(x.label != null ? String(x.label) : ""); }).catch((e) => setErro(e.message || "Erro"));
@@ -57,8 +62,33 @@ export default function Negocio() {
     }
   }
 
+  async function concluirAtiv(a) {
+    if (!a.id) return;
+    setAtivBusy(true); setMsgAtiv("");
+    try {
+      const r = await concluirAtividadePipedrive({ dealId: id, activityId: a.id, feito: true });
+      if (r.simulado) { setMsgAtiv("Modo seguro: não gravou"); return; }
+      setD(await dealPipedrive(id));
+    } catch (e) { setMsgAtiv(e.message || "Falha ao concluir"); }
+    finally { setAtivBusy(false); }
+  }
+
+  async function addAtiv() {
+    if (!novoAtiv.trim()) return;
+    setAtivBusy(true); setMsgAtiv("");
+    try {
+      const r = await novaAtividadePipedrive({ dealId: id, assunto: novoAtiv, vencimento: novoAtivData || null });
+      if (r.simulado) { setMsgAtiv("Modo seguro: não gravou"); return; }
+      setNovoAtiv(""); setNovoAtivData("");
+      setD(await dealPipedrive(id));
+      setMsgAtiv("Atividade adicionada no Pipedrive");
+    } catch (e) { setMsgAtiv(e.message || "Falha ao adicionar"); }
+    finally { setAtivBusy(false); }
+  }
+
   const linhaAtiv = (a, i, atrasada) => (
-    <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 10, fontSize: 13.5, color: "var(--text2)", padding: "4px 0", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}>
+    <div key={a.id || i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "var(--text2)", padding: "5px 0", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}>
+      <button className="chk" title="Marcar como concluída" onClick={() => concluirAtiv(a)} disabled={ativBusy || !a.id} style={{ flexShrink: 0 }} />
       <span style={{ flex: 1, minWidth: 0 }}>{a.assunto}</span>
       {a.vencimento && <span style={{ fontSize: 12, whiteSpace: "nowrap", color: atrasada ? "var(--danger)" : "var(--text3)" }}>{fmtData(a.vencimento)}</span>}
     </div>
@@ -133,6 +163,16 @@ export default function Negocio() {
                   )}
 
                   {d.atividadesFeitas > 0 && <div style={{ fontSize: 12, color: "var(--text3)" }}>{d.atividadesFeitas} já concluídas</div>}
+
+                  <div className="divider" style={{ margin: "2px 0" }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <input className="input" style={{ padding: "8px 10px" }} value={novoAtiv} onChange={(e) => { setNovoAtiv(e.target.value); if (msgAtiv) setMsgAtiv(""); }} placeholder="Nova atividade..." />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input className="input" type="date" style={{ padding: "8px 10px", flex: 1, cursor: "pointer" }} value={novoAtivData} onChange={(e) => setNovoAtivData(e.target.value)} />
+                      <button className="btn primary" style={{ padding: "8px 12px", flexShrink: 0 }} disabled={ativBusy || !novoAtiv.trim()} onClick={addAtiv}>{ativBusy ? "..." : "Adicionar"}</button>
+                    </div>
+                    {msgAtiv && <span style={{ fontSize: 12, color: msgAtiv.startsWith("Atividade") ? "var(--ok)" : "var(--text3)" }}>{msgAtiv}</span>}
+                  </div>
                 </div>
               </div>
 

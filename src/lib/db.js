@@ -78,10 +78,21 @@ export async function listarReunioes() {
   return run(() =>
     supabase
       .from("reunioes")
-      .select("id, titulo, data, created_at, status, notas, prospects(empresa, valor_estimado)")
+      .select("id, titulo, data, created_at, status, notas, pipedrive_deal_id, prospects(empresa, contato, valor_estimado), participantes(count), proximos_passos(count)")
       .order("created_at", { ascending: false })
       .limit(300)
   ) || [];
+}
+
+// Exclui a reuniao e tudo dela (participantes/atas/passos caem por cascade). Nao mexe no Pipedrive.
+export async function excluirReuniao(id) {
+  const r = await run(() => supabase.from("reunioes").select("prospect_id").eq("id", id).maybeSingle());
+  await run(() => supabase.from("reunioes").delete().eq("id", id).select());
+  const pid = r && r.prospect_id;
+  if (pid) {
+    const outras = await run(() => supabase.from("reunioes").select("id").eq("prospect_id", pid).limit(1));
+    if (!outras || outras.length === 0) await run(() => supabase.from("prospects").delete().eq("id", pid).select());
+  }
 }
 
 export async function salvarNotas(reuniaoId, notas) {

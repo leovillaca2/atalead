@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
-import { googleEventos, googleConectarUrl, criarEventoGoogle } from "../lib/api.js";
+import { googleEventos, googleConectarUrl, criarEventoGoogle, excluirEventoGoogle } from "../lib/api.js";
 
 function fmtData(iso) {
   if (!iso) return "";
@@ -36,6 +36,8 @@ export default function Calendario() {
   const [fLocal, setFLocal] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState("");
+  const [paraCancelar, setParaCancelar] = useState(null);
+  const [cancelando, setCancelando] = useState(false);
 
   function carregar() {
     return googleEventos()
@@ -68,6 +70,19 @@ export default function Calendario() {
     } catch (e) {
       setErroForm(e.message || "Falha ao agendar.");
     } finally { setSalvando(false); }
+  }
+
+  async function cancelarEvento() {
+    if (!paraCancelar) return;
+    setCancelando(true);
+    try {
+      await excluirEventoGoogle(paraCancelar.id);
+      setParaCancelar(null);
+      await carregar();
+    } catch (e) {
+      setErro(e.message || "Falha ao cancelar.");
+      setParaCancelar(null);
+    } finally { setCancelando(false); }
   }
 
   if (estado === "carregando") return <div className="screen" style={{ color: "var(--text3)" }}>Carregando…</div>;
@@ -111,6 +126,7 @@ export default function Calendario() {
                   {fmtData(ev.inicio)}{ev.participantes.length ? " · " + ev.participantes.length + " participantes" : ""}
                 </div>
               </div>
+              <button className="btn ghost icon-btn" title="Cancelar reunião" style={{ color: "var(--danger)", flexShrink: 0 }} onClick={() => setParaCancelar(ev)}><Icon name="trash" size={15} /></button>
               <button className="btn" style={{ boxShadow: "none", color: "var(--primary)", flexShrink: 0 }} onClick={() => nav("/nova", { state: { evento: ev } })}>Gerar ata</button>
             </div>
           ))}
@@ -140,6 +156,19 @@ export default function Calendario() {
           <div className="field"><label>Local / link (opcional)</label><input className="input" value={fLocal} onChange={(e) => setFLocal(e.target.value)} placeholder="Google Meet, sala, endereço..." /></div>
           {erroForm && <div style={{ fontSize: 13, color: "var(--danger)" }}>{erroForm}</div>}
         </div>
+      </Modal>
+
+      <Modal
+        open={!!paraCancelar}
+        tone="warn"
+        title="Cancelar esta reunião?"
+        onClose={() => setParaCancelar(null)}
+        footer={<>
+          <button className="btn" onClick={() => setParaCancelar(null)}>Voltar</button>
+          <button className="btn primary" style={{ background: "var(--danger)", borderColor: "var(--danger)" }} onClick={cancelarEvento} disabled={cancelando}>{cancelando ? "Cancelando..." : "Cancelar reunião"}</button>
+        </>}
+      >
+        <p>Isso apaga "{paraCancelar?.titulo}" do Google Calendar e envia um aviso de cancelamento aos participantes. Não dá pra desfazer.</p>
       </Modal>
     </div>
   );
