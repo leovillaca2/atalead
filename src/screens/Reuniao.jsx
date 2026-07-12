@@ -7,6 +7,16 @@ import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive, buscarNegociosPip
 
 const TEMP_COR = { quente: "#15803D", morno: "#B45309", frio: "#1D5FD1" };
 
+// Formata o valor como 10.000,00 (aceita "10000", "10.000", "R$ 10.000,50" etc.).
+function fmtMoeda(v) {
+  if (v === null || v === undefined || v === "") return "";
+  const n = typeof v === "number"
+    ? v
+    : parseFloat(String(v).replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."));
+  if (isNaN(n)) return String(v);
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 const CAMPOS_LEAD = [
   ["empresa", "Empresa"], ["contato", "Contato"], ["cargo", "Cargo"],
   ["segmento", "Segmento"], ["etapa", "Etapa sugerida"], ["valor", "Valor estimado"],
@@ -279,7 +289,7 @@ export default function Reuniao() {
                 {lead.cargo && <div className="kv"><span className="k">Cargo</span><span className="v">{lead.cargo}</span></div>}
                 {lead.segmento && <div className="kv"><span className="k">Segmento</span><span className="v">{lead.segmento}</span></div>}
                 {lead.etapa && <div className="kv"><span className="k">Etapa sugerida</span><span className="v">{lead.etapa}</span></div>}
-                {lead.valor && (<><div className="divider" style={{ margin: "4px 0" }} /><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", color: "var(--text3)" }}>VALOR ESTIMADO</div><div className="value-big">{lead.valor}</div></>)}
+                {lead.valor && (<><div className="divider" style={{ margin: "4px 0" }} /><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", color: "var(--text3)" }}>VALOR ESTIMADO</div><div className="value-big">R$ {fmtMoeda(lead.valor)}</div></>)}
               </>)}
 
               {!editando && (<>
