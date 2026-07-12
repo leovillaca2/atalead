@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
@@ -42,6 +42,9 @@ export default function NovaReuniao() {
   const [participantes, setParticipantes] = useState([{ nome: "", empresa: "", papel: "", email: "" }]);
   const [leadEmpresa, setLeadEmpresa] = useState("");
   const [leadContato, setLeadContato] = useState("");
+  const [leadOrigem, setLeadOrigem] = useState("");
+  const [instrucoesEdit, setInstrucoesEdit] = useState("");
+  const modeloAplicado = useRef(null);
   const [doEvento, setDoEvento] = useState(false);
   const [eventoId, setEventoId] = useState(null);
   const [estado, setEstado] = useState("idle");
@@ -103,6 +106,14 @@ export default function NovaReuniao() {
   }, []);
   async function recarregarModelos() { const ms = await listarModelos(); setModelos(ms); }
 
+  // Quando troca o modelo, traz as instrucoes dele pro campo editavel (so nesta reuniao).
+  useEffect(() => {
+    if (modeloSel && modeloAplicado.current !== modeloSel) {
+      const m = modelos.find((x) => x.id === modeloSel);
+      if (m) { setInstrucoesEdit(m.instrucoes || ""); modeloAplicado.current = modeloSel; }
+    }
+  }, [modeloSel, modelos]);
+
   // Detecta os "Speaker N" da transcricao e propoe um mapeamento padrao (por ordem).
   useEffect(() => {
     const s = detectarSpeakers(transcricao);
@@ -158,13 +169,18 @@ export default function NovaReuniao() {
         const p = idx !== "" && idx != null ? participantes[Number(idx)] : null;
         return p && p.nome ? { speaker: label, nome: p.nome, empresa: p.empresa || "", papel: p.papel || "" } : null;
       }).filter(Boolean);
-      const modelo = modelos.find((m) => m.id === modeloSel);
-      const r = await gerarAta({ transcricao, participantes, falantes, instrucoes: modelo ? modelo.instrucoes : "" });
+      const contexto = [];
+      if (leadEmpresa.trim()) contexto.push("empresa do lead = " + leadEmpresa.trim());
+      if (leadContato.trim()) contexto.push("contato principal = " + leadContato.trim());
+      if (leadOrigem.trim()) contexto.push("canal de origem = " + leadOrigem.trim());
+      const instrucoesFinais = (instrucoesEdit || "") + (contexto.length ? "\n\nContexto informado por mim: " + contexto.join("; ") + "." : "");
+      const r = await gerarAta({ transcricao, participantes, falantes, instrucoes: instrucoesFinais });
       const ata = r.ata || { resumo: r.output || "", decisoes: [], proximos_passos: [], produtos: [], lead: {} };
       if (!ata.lead) ata.lead = {};
-      // Empresa/contato do lead vem do calendario (confiavel); Tess preenche o resto.
+      // Empresa/contato/canal informados por mim tem prioridade; Tess preenche o resto.
       if (leadEmpresa) ata.lead.empresa = leadEmpresa;
       if (leadContato) ata.lead.contato = leadContato;
+      if (leadOrigem) ata.lead.origem = leadOrigem;
       const empresa = ata.lead.empresa || "";
       const tituloFinal = titulo.trim() || ata.titulo || (empresa ? `Reunião de prospecção — ${empresa}` : "Nova reunião");
       if (!ata.lead.empresa) ata.lead.empresa = tituloFinal;
@@ -209,7 +225,8 @@ export default function NovaReuniao() {
             </select>
             <button className="btn" style={{ flexShrink: 0 }} onClick={() => setGerenciar(true)}><Icon name="edit" size={14} /><span>Modelos</span></button>
           </div>
-          {(() => { const m = modelos.find((x) => x.id === modeloSel); return m && m.instrucoes ? <div style={{ fontSize: 12, color: "var(--text3)" }}>{m.instrucoes}</div> : null; })()}
+          <textarea className="textarea" style={{ minHeight: 96, marginTop: 8, fontSize: 13 }} value={instrucoesEdit} onChange={(e) => setInstrucoesEdit(e.target.value)} placeholder="Instruções pra Tess (vêm do modelo escolhido; edite aqui se quiser algo específico deste lead)" />
+          <div style={{ fontSize: 12, color: "var(--text3)" }}>Editar aqui vale só pra esta reunião. Pra mudar o modelo salvo, use a aba Modelos.</div>
         </div>
 
         {/* Lead que vai pro Pipedrive (deduzido do calendário) */}
@@ -219,6 +236,7 @@ export default function NovaReuniao() {
             <input className="input" style={{ flex: 1, minWidth: 180 }} value={leadEmpresa} onChange={(e) => setLeadEmpresa(e.target.value)} placeholder="Empresa do lead" />
             <input className="input" style={{ flex: 1, minWidth: 180 }} value={leadContato} onChange={(e) => setLeadContato(e.target.value)} placeholder="Contato (pessoa)" />
           </div>
+          <input className="input" value={leadOrigem} onChange={(e) => setLeadOrigem(e.target.value)} placeholder="Canal de origem (de onde veio: indicação, LinkedIn, evento, inbound...)" />
           {doEvento && <div style={{ fontSize: 12, color: "var(--text3)" }}>Deduzido dos convidados de fora da PGMais. Ajuste se precisar.</div>}
           {existentes > 0 && (
             <div style={{ fontSize: 12, color: "var(--primary)", background: "var(--primary-soft)", padding: "8px 10px", borderRadius: 8 }}>
