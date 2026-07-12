@@ -17,13 +17,13 @@ export default async function handler(req, res) {
   const agentId = process.env.TESS_AGENT_ID || "2910"; // motor GPT genérico da Tess
   const model = process.env.TESS_MODEL || "gpt-4o-mini";
 
-  const { transcricao, participantes } = req.body || {};
+  const { transcricao, participantes, falantes } = req.body || {};
   if (!transcricao || !transcricao.trim()) return res.status(400).json({ erro: "Transcrição vazia" });
 
-  const mapa = (participantes || [])
-    .filter((p) => p && p.nome)
-    .map((p, i) => `Speaker ${i + 1} = ${p.nome}${p.empresa ? " (" + p.empresa + ")" : ""}${p.papel ? " - " + p.papel : ""}`)
-    .join("; ");
+  const linhaFalante = (label, p) => `${label} = ${p.nome}${p.empresa ? " (" + p.empresa + ")" : ""}${p.papel ? " - " + p.papel : ""}`;
+  const mapa = Array.isArray(falantes) && falantes.length
+    ? falantes.filter((f) => f && f.nome && f.speaker).map((f) => linhaFalante(f.speaker, f)).join("; ")
+    : (participantes || []).filter((p) => p && p.nome).map((p, i) => linhaFalante(`Speaker ${i + 1}`, p)).join("; ");
 
   const prompt = [
     "Você é um assistente que transforma transcrições de reuniões de prospecção em ata executiva.",

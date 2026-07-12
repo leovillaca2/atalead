@@ -41,8 +41,9 @@ async function get(path, ms) {
 }
 
 // Gera a ata a partir da transcricao (servidor chama a Tess). Timeout maior: a Tess demora.
-export function gerarAta({ transcricao, participantes }) {
-  return post("/api/gerar-ata", { transcricao, participantes }, 110000);
+// falantes: mapa explicito [{ speaker, nome, empresa, papel }] pra Tess saber quem e quem.
+export function gerarAta({ transcricao, participantes, falantes }) {
+  return post("/api/gerar-ata", { transcricao, participantes, falantes }, 110000);
 }
 
 // Puxa a transcricao de uma nota do Evernote (servidor chama o Evernote).

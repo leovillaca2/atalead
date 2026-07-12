@@ -19,6 +19,19 @@ function ehTime(email) {
   return !!email && email.toLowerCase().endsWith("@" + OWN_DOMAIN);
 }
 
+// Acha os rotulos de falante na transcricao (Speaker 1, Orador 2, Falante 3...).
+function detectarSpeakers(texto) {
+  const re = /\b(?:speaker|orador|falante|participante)\s*\d+/gi;
+  const vistos = new Map();
+  let m;
+  while ((m = re.exec(texto || ""))) {
+    const s = m[0].replace(/\s+/g, " ").trim();
+    const k = s.toLowerCase();
+    if (!vistos.has(k)) vistos.set(k, s);
+  }
+  return [...vistos.values()].sort((a, b) => (parseInt(a.replace(/\D/g, "")) || 0) - (parseInt(b.replace(/\D/g, "")) || 0));
+}
+
 export default function NovaReuniao() {
   const nav = useNavigate();
   const loc = useLocation();
@@ -35,6 +48,8 @@ export default function NovaReuniao() {
   const [lendo, setLendo] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [existentes, setExistentes] = useState(0);
+  const [speakers, setSpeakers] = useState([]);
+  const [speakerSel, setSpeakerSel] = useState({});
 
   useEffect(() => {
     const ev = loc.state && loc.state.evento;
@@ -78,6 +93,22 @@ export default function NovaReuniao() {
     return () => clearInterval(id);
   }, [estado]);
 
+  // Detecta os "Speaker N" da transcricao e propoe um mapeamento padrao (por ordem).
+  useEffect(() => {
+    const s = detectarSpeakers(transcricao);
+    setSpeakers(s);
+    setSpeakerSel((prev) => {
+      const next = { ...prev };
+      s.forEach((label) => {
+        if (next[label] === undefined) {
+          const n = (parseInt(label.replace(/\D/g, "")) || 0) - 1;
+          next[label] = n >= 0 && participantes[n] && participantes[n].nome ? String(n) : "";
+        }
+      });
+      return next;
+    });
+  }, [transcricao, participantes]);
+
   // Aviso cedo: essa empresa ja tem negocio no Pipedrive? (a decisao real e no envio)
   useEffect(() => {
     const emp = leadEmpresa.trim();
@@ -112,7 +143,12 @@ export default function NovaReuniao() {
     setErro("");
     setEstado("gerando");
     try {
-      const r = await gerarAta({ transcricao, participantes });
+      const falantes = speakers.map((label) => {
+        const idx = speakerSel[label];
+        const p = idx !== "" && idx != null ? participantes[Number(idx)] : null;
+        return p && p.nome ? { speaker: label, nome: p.nome, empresa: p.empresa || "", papel: p.papel || "" } : null;
+      }).filter(Boolean);
+      const r = await gerarAta({ transcricao, participantes, falantes });
       const ata = r.ata || { resumo: r.output || "", decisoes: [], proximos_passos: [], produtos: [], lead: {} };
       if (!ata.lead) ata.lead = {};
       // Empresa/contato do lead vem do calendario (confiavel); Tess preenche o resto.
@@ -195,6 +231,23 @@ export default function NovaReuniao() {
           <textarea className="textarea" value={transcricao} onChange={(e) => setTranscricao(e.target.value)} placeholder="Ou cole aqui a transcrição / suas notas (do Evernote)..." />
           <div style={{ fontSize: 12, color: "var(--text3)" }}>O arquivo é lido aqui no seu navegador. Só o texto vai pra Tess.</div>
         </div>
+
+        {speakers.length > 0 && (
+          <div className="field">
+            <label>Quem é cada pessoa? <span style={{ color: "var(--text3)", fontWeight: 400 }}>(liga os "Speaker" da transcrição aos participantes)</span></label>
+            {speakers.map((label) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text2)", minWidth: 84 }}>{label}</span>
+                <Icon name="arrow" size={14} style={{ color: "var(--text3)", flexShrink: 0 }} />
+                <select className="input" style={{ flex: 1, cursor: "pointer" }} value={speakerSel[label] ?? ""} onChange={(e) => setSpeakerSel((m) => ({ ...m, [label]: e.target.value }))}>
+                  <option value="">Não sei / ignorar</option>
+                  {participantes.map((p, i) => (p.nome ? <option key={i} value={String(i)}>{p.nome}{p.empresa ? " (" + p.empresa + ")" : ""}</option> : null))}
+                </select>
+              </div>
+            ))}
+            <div style={{ fontSize: 12, color: "var(--text3)" }}>Entrou alguém que não era convidado? Adicione em "Participantes" acima (botão +) que ele aparece aqui.</div>
+          </div>
+        )}
 
         {erro && <div style={{ fontSize: 13, color: "var(--danger)", background: "var(--danger-soft)", padding: "10px 12px", borderRadius: 9 }}>{erro}</div>}
 
