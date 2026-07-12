@@ -23,18 +23,30 @@ export default async function handler(req, res) {
   const data = await (await fetch(url, { headers: { Authorization: `Bearer ${tok.access_token}` } })).json();
   if (data.error) return res.status(502).json({ conectado: true, eventos: [], erro: data.error.message || "Erro no Calendar" });
 
+  const limparHtml = (h) => (h || "")
+    .replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
+    .replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+
   const eventos = (data.items || []).map((e) => ({
     id: e.id,
     titulo: e.summary || "(sem título)",
     inicio: (e.start && (e.start.dateTime || e.start.date)) || null,
     fim: (e.end && (e.end.dateTime || e.end.date)) || null,
     local: e.location || null,
+    descricao: limparHtml(e.description) || null,
+    link: e.hangoutLink
+      || (e.conferenceData && e.conferenceData.entryPoints && (e.conferenceData.entryPoints.find((p) => p.entryPointType === "video") || {}).uri)
+      || null,
+    htmlLink: e.htmlLink || null,
     participantes: (e.attendees || [])
       .filter((a) => !a.self && !a.resource)
       .map((a) => ({
         nome: a.displayName || (a.email ? a.email.split("@")[0] : ""),
         email: a.email || "",
         empresa: a.email ? (a.email.split("@")[1] || "").split(".")[0] : "",
+        status: a.responseStatus || "needsAction",
+        organizador: !!a.organizer,
       })),
   }));
   return res.status(200).json({ conectado: true, eventos });

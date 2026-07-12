@@ -14,6 +14,13 @@ function fmtData(iso) {
   });
 }
 
+const STATUS = {
+  accepted: { cor: "#15803D", label: "confirmou" },
+  declined: { cor: "#B4231C", label: "recusou" },
+  tentative: { cor: "#B45309", label: "talvez" },
+  needsAction: { cor: "#7E9196", label: "aguardando" },
+};
+
 function pad(n) { return String(n).padStart(2, "0"); }
 function localMaisMin(localStr, min) {
   const d = new Date(localStr);
@@ -38,6 +45,7 @@ export default function Calendario() {
   const [erroForm, setErroForm] = useState("");
   const [paraCancelar, setParaCancelar] = useState(null);
   const [cancelando, setCancelando] = useState(false);
+  const [expandido, setExpandido] = useState(null);
 
   function carregar() {
     return googleEventos()
@@ -115,21 +123,60 @@ export default function Calendario() {
       ) : (
         <div className="card" style={{ overflow: "hidden" }}>
           {eventos.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--text3)", fontSize: 13 }}>Nenhuma reunião nos próximos dias. Clique em "Agendar reunião" pra criar uma.</div>}
-          {eventos.map((ev) => (
-            <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 18px", borderBottom: "1px solid var(--border)" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 9, background: "var(--surface2)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                <Icon name="calendar" size={17} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.titulo}</div>
-                <div style={{ fontSize: 12.5, color: "var(--text3)", marginTop: 1 }}>
-                  {fmtData(ev.inicio)}{ev.participantes.length ? " · " + ev.participantes.length + " participantes" : ""}
+          {eventos.map((ev) => {
+            const aberto = expandido === ev.id;
+            return (
+              <div key={ev.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 18px" }}>
+                  <div onClick={() => setExpandido(aberto ? null : ev.id)} style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, cursor: "pointer" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 9, background: "var(--surface2)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                      <Icon name="calendar" size={17} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.titulo}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--text3)", marginTop: 1 }}>
+                        {fmtData(ev.inicio)}{ev.participantes.length ? " · " + ev.participantes.length + " convidado" + (ev.participantes.length > 1 ? "s" : "") : ""}
+                      </div>
+                    </div>
+                    <Icon name="arrow" size={15} style={{ color: "var(--text3)", flexShrink: 0, transform: aberto ? "rotate(90deg)" : "none", transition: "transform .15s" }} />
+                  </div>
+                  <button className="btn ghost icon-btn" title="Cancelar reunião" style={{ color: "var(--danger)", flexShrink: 0 }} onClick={() => setParaCancelar(ev)}><Icon name="trash" size={15} /></button>
+                  <button className="btn" style={{ boxShadow: "none", color: "var(--primary)", flexShrink: 0 }} onClick={() => nav("/nova", { state: { evento: ev } })}>Gerar ata</button>
                 </div>
+
+                {aberto && (
+                  <div style={{ padding: "0 18px 16px 72px", display: "flex", flexDirection: "column", gap: 14 }}>
+                    {(ev.link || ev.htmlLink) && (
+                      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+                        {ev.link && <a href={ev.link} target="_blank" rel="noreferrer" className="btn primary" style={{ padding: "7px 12px", textDecoration: "none" }}><Icon name="mic" size={14} /><span>Entrar na reunião</span></a>}
+                        {ev.htmlLink && <a href={ev.htmlLink} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "var(--primary)" }}>Abrir no Google Calendar</a>}
+                      </div>
+                    )}
+                    {ev.local && <div style={{ fontSize: 13, color: "var(--text2)", wordBreak: "break-word" }}><span style={{ color: "var(--text3)" }}>Local:</span> {ev.local}</div>}
+                    <div>
+                      <div className="eyebrow">CONVIDADOS ({ev.participantes.length})</div>
+                      {ev.participantes.length ? ev.participantes.map((p, i) => {
+                        const st = STATUS[p.status] || STATUS.needsAction;
+                        return (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0", fontSize: 13, color: "var(--text2)" }}>
+                            <span title={st.label} style={{ width: 9, height: 9, borderRadius: "50%", background: st.cor, flexShrink: 0 }} />
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.email || p.nome}</span>
+                            <span style={{ fontSize: 11.5, color: "var(--text3)", flexShrink: 0 }}>{p.organizador ? "organizador" : st.label}</span>
+                          </div>
+                        );
+                      }) : <div style={{ fontSize: 13, color: "var(--text3)" }}>Sem convidados.</div>}
+                    </div>
+                    {ev.descricao && (
+                      <div>
+                        <div className="eyebrow">DESCRIÇÃO</div>
+                        <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{ev.descricao}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <button className="btn ghost icon-btn" title="Cancelar reunião" style={{ color: "var(--danger)", flexShrink: 0 }} onClick={() => setParaCancelar(ev)}><Icon name="trash" size={15} /></button>
-              <button className="btn" style={{ boxShadow: "none", color: "var(--primary)", flexShrink: 0 }} onClick={() => nav("/nova", { state: { evento: ev } })}>Gerar ata</button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
