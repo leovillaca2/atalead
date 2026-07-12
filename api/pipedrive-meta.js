@@ -56,6 +56,18 @@ export default async function handler(req, res) {
       }
       return res.status(200).json({ negocios: negocios.slice(0, 10) });
     }
+    if (tipo === "segmentos") {
+      // Procura um campo (de negocio ou organizacao) que represente segmento/setor e devolve as opcoes.
+      const alvo = /segment|setor|ind[uú]str|vertical|ramo|nicho/i;
+      const coletar = async (url) => {
+        const campos = (await (await fetch(url)).json()).data || [];
+        const c = campos.find((f) => f.options && f.options.length && (alvo.test(f.name || "") || alvo.test(f.key || "")));
+        return c ? c.options.map((o) => o.label) : null;
+      };
+      let segmentos = await coletar(`${BASE}/dealFields?${q}`);
+      if (!segmentos) segmentos = await coletar(`${BASE}/organizationFields?${q}`);
+      return res.status(200).json({ segmentos: segmentos || [] });
+    }
     if (tipo === "labels") {
       // O "termometro" do lead no Pipedrive e o campo Label do negocio (ex.: Quente/Morno/Frio).
       const campos = (await (await fetch(`${BASE}/dealFields?${q}`)).json()).data || [];

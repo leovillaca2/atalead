@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
 import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, salvarNotas, fmtValor } from "../lib/db.js";
-import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive, buscarNegociosPipedrive } from "../lib/api.js";
+import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive, buscarNegociosPipedrive, segmentosPipedrive } from "../lib/api.js";
 
 const TEMP_COR = { quente: "#15803D", morno: "#B45309", frio: "#1D5FD1" };
 
@@ -36,6 +36,7 @@ export default function Reuniao() {
   const [pipelineSel, setPipelineSel] = useState(localStorage.getItem("atalead-funil-pipeline") || "");
   const [etapas, setEtapas] = useState([]);
   const [stageSel, setStageSel] = useState("");
+  const [segmentos, setSegmentos] = useState([]);
 
   const [notas, setNotas] = useState("");
   const [salvandoNotas, setSalvandoNotas] = useState(false);
@@ -60,6 +61,7 @@ export default function Reuniao() {
       setFunis(d.funis || []);
       setPipelineSel((cur) => cur || (d.funis && d.funis[0] ? String(d.funis[0].id) : ""));
     }).catch(() => {});
+    segmentosPipedrive().then((d) => setSegmentos(d.segmentos || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -258,12 +260,17 @@ export default function Reuniao() {
             </div>
             <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {editando ? (
-                CAMPOS_LEAD.map(([k, rotulo]) => (
-                  <div className="field" key={k}>
-                    <label style={{ fontSize: 12, color: "var(--text2)" }}>{rotulo}</label>
-                    <input className="input" style={{ padding: "8px 11px" }} value={eLead[k] || ""} onChange={(e) => setELead((l) => ({ ...l, [k]: e.target.value }))} />
-                  </div>
-                ))
+                CAMPOS_LEAD.map(([k, rotulo]) => {
+                  const opcoes = k === "etapa" ? etapas.map((s) => s.nome) : k === "segmento" ? segmentos : null;
+                  const listId = opcoes && opcoes.length ? `dl-${k}` : undefined;
+                  return (
+                    <div className="field" key={k}>
+                      <label style={{ fontSize: 12, color: "var(--text2)" }}>{rotulo}</label>
+                      <input className="input" style={{ padding: "8px 11px" }} list={listId} value={eLead[k] || ""} onChange={(e) => setELead((l) => ({ ...l, [k]: e.target.value }))} />
+                      {listId && <datalist id={listId}>{opcoes.map((o, idx) => <option key={idx} value={o} />)}</datalist>}
+                    </div>
+                  );
+                })
               ) : (<>
                 {lead.empresa && <div className="kv"><span className="k">Empresa</span><span className="v">{lead.empresa}</span></div>}
                 {lead.contato && <div className="kv"><span className="k">Contato</span><span className="v">{lead.contato}</span></div>}

@@ -67,6 +67,11 @@ export function labelsPipedrive() {
   return get("/api/pipedrive-meta?tipo=labels");
 }
 
+// Lista as opcoes de segmento/setor configuradas no Pipedrive (pra sugerir no lead).
+export function segmentosPipedrive() {
+  return get("/api/pipedrive-meta?tipo=segmentos");
+}
+
 // Detalhe completo de um negocio do Pipedrive (exige login).
 export async function dealPipedrive(id) {
   const res = await fetchT("/api/pipedrive-deal?id=" + encodeURIComponent(id), { headers: await bearer() });
