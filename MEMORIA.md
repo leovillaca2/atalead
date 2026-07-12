@@ -119,6 +119,13 @@ ESTADO 2026-07-11 (funcional e verificado em producao):
 - PROMPT DE VENDA REAL do Augusto vira o modelo Prospecção (migration ...003 update): resumo destacando o que o prospect busca na PGMais, proximos passos, ANALISE da apresentacao do Augusto com NOTA 0-10, PROBABILIDADE de evoluir, e TEMPERATURA frio/morno/quente. Schema JSON da Tess ganhou temperatura/probabilidade/avaliacao{nota,comentario} (so preenche em prospecção/venda). Coluna atas.analise jsonb guarda {temperatura,probabilidade,nota,comentario}; Reuniao.jsx mostra bloco ANALISE (nota/10, dot de temperatura, probabilidade, comentario).
 - IDEIA FUTURA: usar a temperatura da analise pra pre-setar o Label do negocio no Pipedrive automaticamente ao enviar (hoje e manual na tela do lead).
 
+## Refino modelos/lead (2026-07-12 cont.)
+- Aba MODELOS no menu (/modelos, screen Modelos + componente reusavel ModelosEditor) alem do atalho na Nova reuniao. Cria/edita/exclui.
+- Instrucoes do modelo viram CAMPO EDITAVEL na Nova reuniao (instrucoesEdit): vem do modelo escolhido (reset via modeloAplicado ref quando troca), editavel so pra aquela reuniao. Campo CANAL DE ORIGEM (leadOrigem) adicionado; empresa/contato/canal viram "Contexto informado por mim" concatenado nas instrucoes enviadas a Tess, e vao pro ata.lead (empresa/contato/origem). Schema Tess ganhou lead.origem.
+- Campo PAPEL/cargo agora em TODOS os participantes (antes so nos adicionados manualmente); etiqueta time/lead fica ao lado; aviso que a Tess infere se vazio.
+- ANALISE editavel na tela da reuniao (modo editar): nota/temperatura(select)/probabilidade/comentario, salvo via updateAta em atas.analise.
+- ETAPA sugerida e SEGMENTO no editar do lead viraram input+datalist (lista suspensa + texto livre): etapa usa as etapas do funil; segmento usa pipedrive-meta ?tipo=segmentos (varre dealFields/organizationFields por campo com nome segment/setor/industr/vertical/ramo/nicho e devolve options; vazio = so texto livre).
+
 ## PENDENTE (nao aplicado por escolha): mobile (nav no celular, token --faint->--text3, foco de teclado/labels, contraste --text3) e features (prazo->due_date, follow-up IA, regenerar/versionar ata, vincular a negocio existente=anti-duplicado). JWT do Supabase ainda vai na URL do /api/google/auth (medio, adiado).
 - Falta: Evernote (chave no suporte, modo colar cobre); trocar a senha fraca; refinar RLS por dono se virar multiusuario; seed opcional. Rodar /api local = `vercel dev`.
 
