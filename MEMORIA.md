@@ -126,6 +126,13 @@ ESTADO 2026-07-11 (funcional e verificado em producao):
 - ANALISE editavel na tela da reuniao (modo editar): nota/temperatura(select)/probabilidade/comentario, salvo via updateAta em atas.analise.
 - ETAPA sugerida e SEGMENTO no editar do lead viraram input+datalist (lista suspensa + texto livre): etapa usa as etapas do funil; segmento usa pipedrive-meta ?tipo=segmentos (varre dealFields/organizationFields por campo com nome segment/setor/industr/vertical/ramo/nicho e devolve options; vazio = so texto livre).
 
+## Atividades no Pipedrive + reuniao como atividade + follow-up (2026-07-12 cont.)
+- CONFIRMADO por leitura direta na API (token do .env.local; vercel env pull vem VAZIO aqui, nao usar pra ler segredos): a nota da ata FOI gravada no deal Dellamed (14988) - o write funciona. Usuario "nao achou" pq nota fica dentro do deal (aba Notas) e o vincular antigo nao mexia em etapa/valor.
+- FIX vincular/atualizar: vincular agora atualiza valor+etapa do deal existente (nao toca titulo); atualizar tb nao sobrescreve titulo (era bug p/ deal externo); proximos passos agora VAO como tarefas (payload da ata na tela Reuniao nao os incluia - juntei do state passos).
+- REUNIAO VIRA ATIVIDADE CONCLUIDA no Pipedrive (anexarAtaEtarefas, no 1o push create/link): type meeting, done=1, note=RESUMO (anotacao=resumo da ata, pedido do usuario), due_date=data da reuniao (dataReuniao=reuniao.data enviado pelo front). Decisoes/produtos viram NOTA; proximos passos viram tarefas abertas (type task).
+- GESTAO DE ATIVIDADES no lead (Negocio): pipedrive-acao ganhou atividade-editar (PUT) e atividade-nova estendida (tipo/data/hora/duracao/nota); pipedrive-meta ?tipo=tipos-atividade (activityTypes). pipedrive-deal mapA devolve id/tipo/hora/duracao/nota. UI: form "Nova atividade" (tipo select, assunto, data, hora, duracao, anotacao) + lapis pra editar/reagendar inline + circulo concluir.
+- FOLLOW-UP: checkbox "Agendar no Google Calendar" na nova atividade (opt-in). Se marcado + data + hora, cria evento no Google (criarEventoGoogle, sem convidar o contato); aparece no AtaLead pela sincronia do calendario. fimEvento soma duracao (default 30min).
+
 ## PENDENTE (nao aplicado por escolha): mobile (nav no celular, token --faint->--text3, foco de teclado/labels, contraste --text3) e features (prazo->due_date, follow-up IA, regenerar/versionar ata, vincular a negocio existente=anti-duplicado). JWT do Supabase ainda vai na URL do /api/google/auth (medio, adiado).
 - Falta: Evernote (chave no suporte, modo colar cobre); trocar a senha fraca; refinar RLS por dono se virar multiusuario; seed opcional. Rodar /api local = `vercel dev`.
 
