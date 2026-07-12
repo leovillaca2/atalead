@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
+import Modal from "../components/Modal.jsx";
 import { gerarAta, buscarNegociosPipedrive } from "../lib/api.js";
-import { criarReuniaoCompleta } from "../lib/db.js";
+import { criarReuniaoCompleta, listarModelos, criarModelo, atualizarModelo, excluirModelo } from "../lib/db.js";
 import { extrairTexto } from "../lib/extrair.js";
 
 const OWN_DOMAIN = "pgmais.com.br"; // dominio do seu time; outros = lado do lead
@@ -32,6 +33,48 @@ function detectarSpeakers(texto) {
   return [...vistos.values()].sort((a, b) => (parseInt(a.replace(/\D/g, "")) || 0) - (parseInt(b.replace(/\D/g, "")) || 0));
 }
 
+function GerenciarModelos({ onClose, onChange, modelos }) {
+  const [itens, setItens] = useState(() => modelos.map((m) => ({ ...m })));
+  const [novo, setNovo] = useState({ nome: "", instrucoes: "" });
+  const [busy, setBusy] = useState(false);
+  const setItem = (id, campo, v) => setItens((l) => l.map((x) => (x.id === id ? { ...x, [campo]: v } : x)));
+
+  async function salvar(m) { setBusy(true); try { await atualizarModelo(m.id, m); await onChange(); } finally { setBusy(false); } }
+  async function remover(m) {
+    if (!window.confirm(`Excluir o modelo "${m.nome}"?`)) return;
+    setBusy(true);
+    try { await excluirModelo(m.id); setItens((l) => l.filter((x) => x.id !== m.id)); await onChange(); } finally { setBusy(false); }
+  }
+  async function adicionar() {
+    if (!novo.nome.trim()) return;
+    setBusy(true);
+    try { const m = await criarModelo(novo); setItens((l) => [...l, m]); setNovo({ nome: "", instrucoes: "" }); await onChange(); } finally { setBusy(false); }
+  }
+
+  return (
+    <Modal open title="Modelos de ata" onClose={onClose} footer={<button className="btn primary" onClick={onClose}>Fechar</button>}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {itens.map((m) => (
+          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            <input className="input" value={m.nome} onChange={(e) => setItem(m.id, "nome", e.target.value)} placeholder="Nome do tipo" />
+            <textarea className="textarea" style={{ minHeight: 70 }} value={m.instrucoes} onChange={(e) => setItem(m.id, "instrucoes", e.target.value)} placeholder="Instruções pra Tess (o foco desse tipo de reunião)" />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button className="btn" style={{ color: "var(--danger)", boxShadow: "none" }} onClick={() => remover(m)} disabled={busy}>Excluir</button>
+              <button className="btn primary" onClick={() => salvar(m)} disabled={busy}>Salvar</button>
+            </div>
+          </div>
+        ))}
+        <div style={{ border: "1px dashed var(--border)", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="eyebrow">NOVO MODELO</div>
+          <input className="input" value={novo.nome} onChange={(e) => setNovo((n) => ({ ...n, nome: e.target.value }))} placeholder="Nome (ex: Negociação, Kickoff)" />
+          <textarea className="textarea" style={{ minHeight: 60 }} value={novo.instrucoes} onChange={(e) => setNovo((n) => ({ ...n, instrucoes: e.target.value }))} placeholder="Instruções pra Tess" />
+          <button className="btn primary" style={{ alignSelf: "flex-start" }} onClick={adicionar} disabled={busy || !novo.nome.trim()}>Adicionar modelo</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export default function NovaReuniao() {
   const nav = useNavigate();
   const loc = useLocation();
@@ -50,6 +93,9 @@ export default function NovaReuniao() {
   const [existentes, setExistentes] = useState(0);
   const [speakers, setSpeakers] = useState([]);
   const [speakerSel, setSpeakerSel] = useState({});
+  const [modelos, setModelos] = useState([]);
+  const [modeloSel, setModeloSel] = useState("");
+  const [gerenciar, setGerenciar] = useState(false);
 
   useEffect(() => {
     const ev = loc.state && loc.state.evento;
@@ -92,6 +138,11 @@ export default function NovaReuniao() {
     }, 150);
     return () => clearInterval(id);
   }, [estado]);
+
+  useEffect(() => {
+    listarModelos().then((ms) => { setModelos(ms); setModeloSel((cur) => cur || (ms[0] ? ms[0].id : "")); }).catch(() => {});
+  }, []);
+  async function recarregarModelos() { const ms = await listarModelos(); setModelos(ms); }
 
   // Detecta os "Speaker N" da transcricao e propoe um mapeamento padrao (por ordem).
   useEffect(() => {
@@ -148,7 +199,8 @@ export default function NovaReuniao() {
         const p = idx !== "" && idx != null ? participantes[Number(idx)] : null;
         return p && p.nome ? { speaker: label, nome: p.nome, empresa: p.empresa || "", papel: p.papel || "" } : null;
       }).filter(Boolean);
-      const r = await gerarAta({ transcricao, participantes, falantes });
+      const modelo = modelos.find((m) => m.id === modeloSel);
+      const r = await gerarAta({ transcricao, participantes, falantes, instrucoes: modelo ? modelo.instrucoes : "" });
       const ata = r.ata || { resumo: r.output || "", decisoes: [], proximos_passos: [], produtos: [], lead: {} };
       if (!ata.lead) ata.lead = {};
       // Empresa/contato do lead vem do calendario (confiavel); Tess preenche o resto.
@@ -187,6 +239,18 @@ export default function NovaReuniao() {
         <div className="field">
           <label>Título da reunião <span style={{ color: "var(--text3)", fontWeight: 400 }}>(opcional, a Tess preenche)</span></label>
           <input className="input" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Reunião de prospecção — Nome da empresa" />
+        </div>
+
+        <div className="field">
+          <label>Tipo de reunião <span style={{ color: "var(--text3)", fontWeight: 400 }}>(muda o foco do resumo)</span></label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <select className="input" style={{ flex: 1, cursor: "pointer" }} value={modeloSel} onChange={(e) => setModeloSel(e.target.value)}>
+              {modelos.length === 0 && <option value="">Padrão</option>}
+              {modelos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+            <button className="btn" style={{ flexShrink: 0 }} onClick={() => setGerenciar(true)}><Icon name="edit" size={14} /><span>Modelos</span></button>
+          </div>
+          {(() => { const m = modelos.find((x) => x.id === modeloSel); return m && m.instrucoes ? <div style={{ fontSize: 12, color: "var(--text3)" }}>{m.instrucoes}</div> : null; })()}
         </div>
 
         {/* Lead que vai pro Pipedrive (deduzido do calendário) */}
@@ -250,6 +314,8 @@ export default function NovaReuniao() {
         )}
 
         {erro && <div style={{ fontSize: 13, color: "var(--danger)", background: "var(--danger-soft)", padding: "10px 12px", borderRadius: 9 }}>{erro}</div>}
+
+        {gerenciar && <GerenciarModelos modelos={modelos} onClose={() => setGerenciar(false)} onChange={recarregarModelos} />}
 
         <div>
           <button className="btn primary" disabled={!podeGerar} onClick={gerar} style={{ opacity: podeGerar ? 1 : 0.55 }}>

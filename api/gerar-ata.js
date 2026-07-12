@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   const agentId = process.env.TESS_AGENT_ID || "2910"; // motor GPT genérico da Tess
   const model = process.env.TESS_MODEL || "gpt-4o-mini";
 
-  const { transcricao, participantes, falantes } = req.body || {};
+  const { transcricao, participantes, falantes, instrucoes } = req.body || {};
   if (!transcricao || !transcricao.trim()) return res.status(400).json({ erro: "Transcrição vazia" });
 
   const linhaFalante = (label, p) => `${label} = ${p.nome}${p.empresa ? " (" + p.empresa + ")" : ""}${p.papel ? " - " + p.papel : ""}`;
@@ -26,11 +26,12 @@ export default async function handler(req, res) {
     : (participantes || []).filter((p) => p && p.nome).map((p, i) => linhaFalante(`Speaker ${i + 1}`, p)).join("; ");
 
   const prompt = [
-    "Você é um assistente que transforma transcrições de reuniões de prospecção em ata executiva.",
+    "Você é um assistente que transforma transcrições de reuniões em ata executiva.",
+    instrucoes && instrucoes.trim() ? "Tipo e foco desta reunião: " + instrucoes.trim() : null,
     mapa ? "Mapa de falantes: " + mapa + "." : "Identifique os participantes pelo conteúdo da conversa.",
     "Gere a ata a partir da transcrição abaixo e responda APENAS com um JSON válido (sem texto fora do JSON, sem ```), no formato:",
-    '{"titulo": "titulo curto da reuniao", "participantes": [{"nome": "...", "empresa": "...", "papel": "..."}], "resumo": "texto corrido objetivo", "decisoes": ["..."], "proximos_passos": [{"titulo": "...", "responsavel": "...", "prazo": "..."}], "produtos": ["..."], "lead": {"empresa": "...", "contato": "...", "cargo": "...", "segmento": "...", "etapa": "...", "valor": "..."}}',
-    "Regras: seja fiel à transcrição, não invente dados; se um campo não aparecer, deixe string vazia. O titulo deve seguir o padrao 'Reunião de prospecção — <empresa>'. Escreva em português do Brasil, sem travessões.",
+    '{"titulo": "titulo curto da reuniao", "participantes": [{"nome": "...", "empresa": "...", "papel": "..."}], "resumo": "texto corrido objetivo", "decisoes": ["..."], "proximos_passos": [{"titulo": "...", "responsavel": "...", "prazo": "..."}], "produtos": ["..."], "lead": {"empresa": "...", "contato": "...", "cargo": "...", "segmento": "...", "etapa": "...", "valor": "...", "origem": "..."}, "temperatura": "frio, morno ou quente (vazio se nao se aplicar)", "probabilidade": "avaliacao curta da chance do negocio evoluir", "avaliacao": {"nota": 0, "comentario": "analise da apresentacao do vendedor"}}',
+    "Regras: seja fiel à transcrição, não invente dados; se um campo não aparecer, deixe string vazia. O titulo deve ser curto e descritivo (tipo da reunião e empresa quando houver). Preencha temperatura, probabilidade e avaliacao APENAS quando o foco pedir (prospecção ou venda); caso contrário deixe temperatura e probabilidade vazios e avaliacao com nota 0 e comentario vazio. Escreva em português do Brasil, sem travessões.",
     "",
     "Transcrição:",
     transcricao,

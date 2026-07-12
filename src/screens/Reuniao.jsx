@@ -5,6 +5,8 @@ import Modal from "../components/Modal.jsx";
 import { getReuniao, togglePasso, salvarVinculoPipedrive, updateAta, salvarNotas, fmtValor } from "../lib/db.js";
 import { enviarPipedrive, pipelinesPipedrive, stagesPipedrive, buscarNegociosPipedrive } from "../lib/api.js";
 
+const TEMP_COR = { quente: "#15803D", morno: "#B45309", frio: "#1D5FD1" };
+
 const CAMPOS_LEAD = [
   ["empresa", "Empresa"], ["contato", "Contato"], ["cargo", "Cargo"],
   ["segmento", "Segmento"], ["etapa", "Etapa sugerida"], ["valor", "Valor estimado"],
@@ -197,6 +199,23 @@ export default function Reuniao() {
               </div>
             ))}</div></>)}
             {produtos.length > 0 && (<><div className="divider" /><div className="ata-block"><div className="eyebrow">PRODUTOS PARA A PROPOSTA</div><div className="tags">{produtos.map((p, i) => <span className="tag" key={i}>{p}</span>)}</div></div></>)}
+            {ata?.analise && (ata.analise.nota > 0 || ata.analise.temperatura || ata.analise.probabilidade || ata.analise.comentario) && (<>
+              <div className="divider" />
+              <div className="ata-block">
+                <div className="eyebrow">ANÁLISE</div>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: ata.analise.comentario ? 8 : 0 }}>
+                  {ata.analise.nota > 0 && <span style={{ fontSize: 13.5 }}>Nota da apresentação: <b>{ata.analise.nota}/10</b></span>}
+                  {ata.analise.temperatura && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13.5, textTransform: "capitalize" }}>
+                      <span style={{ width: 9, height: 9, borderRadius: "50%", background: TEMP_COR[String(ata.analise.temperatura).toLowerCase()] || "var(--text3)" }} />
+                      {ata.analise.temperatura}
+                    </span>
+                  )}
+                  {ata.analise.probabilidade && <span style={{ fontSize: 13.5, color: "var(--text2)" }}>Probabilidade: {ata.analise.probabilidade}</span>}
+                </div>
+                {ata.analise.comentario && <p className="ata-p">{ata.analise.comentario}</p>}
+              </div>
+            </>)}
           </div>
         </div>
 

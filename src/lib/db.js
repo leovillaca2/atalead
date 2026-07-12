@@ -85,6 +85,20 @@ export async function listarReunioes() {
   ) || [];
 }
 
+// Modelos de ata (tipos de reuniao). Cada um muda o foco do processamento da Tess.
+export async function listarModelos() {
+  return run(() => supabase.from("modelos_ata").select("*").order("ordem", { ascending: true }).order("created_at", { ascending: true })) || [];
+}
+export async function criarModelo({ nome, instrucoes }) {
+  return run(() => supabase.from("modelos_ata").insert({ nome, instrucoes: instrucoes || "", ordem: 100 }).select().single());
+}
+export async function atualizarModelo(id, { nome, instrucoes }) {
+  await run(() => supabase.from("modelos_ata").update({ nome, instrucoes: instrucoes || "" }).eq("id", id).select());
+}
+export async function excluirModelo(id) {
+  await run(() => supabase.from("modelos_ata").delete().eq("id", id).select());
+}
+
 // Sincroniza os eventos do Google com os registros do AtaLead (chamado ao abrir o Calendario).
 // Insere os que faltam como 'agendada' e marca 'cancelada' os que sumiram do Google (na janela).
 export async function sincronizarAgenda(eventos) {
@@ -190,6 +204,12 @@ export async function criarReuniaoCompleta({ titulo, participantes, transcricao,
     decisoes: (ata && ata.decisoes) || [],
     produtos: (ata && ata.produtos) || [],
     lead,
+    analise: {
+      temperatura: (ata && ata.temperatura) || null,
+      probabilidade: (ata && ata.probabilidade) || null,
+      nota: ata && ata.avaliacao ? ata.avaliacao.nota : null,
+      comentario: ata && ata.avaliacao ? ata.avaliacao.comentario : null,
+    },
   }).select());
 
   const passos = ((ata && ata.proximos_passos) || []).map((t) => ({
