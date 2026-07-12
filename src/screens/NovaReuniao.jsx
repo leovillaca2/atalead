@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "../components/Icons.jsx";
 import Modal from "../components/Modal.jsx";
+import ModelosEditor from "../components/ModelosEditor.jsx";
 import { gerarAta, buscarNegociosPipedrive } from "../lib/api.js";
-import { criarReuniaoCompleta, listarModelos, criarModelo, atualizarModelo, excluirModelo } from "../lib/db.js";
+import { criarReuniaoCompleta, listarModelos } from "../lib/db.js";
 import { extrairTexto } from "../lib/extrair.js";
 
 const OWN_DOMAIN = "pgmais.com.br"; // dominio do seu time; outros = lado do lead
@@ -31,48 +32,6 @@ function detectarSpeakers(texto) {
     if (!vistos.has(k)) vistos.set(k, s);
   }
   return [...vistos.values()].sort((a, b) => (parseInt(a.replace(/\D/g, "")) || 0) - (parseInt(b.replace(/\D/g, "")) || 0));
-}
-
-function GerenciarModelos({ onClose, onChange, modelos }) {
-  const [itens, setItens] = useState(() => modelos.map((m) => ({ ...m })));
-  const [novo, setNovo] = useState({ nome: "", instrucoes: "" });
-  const [busy, setBusy] = useState(false);
-  const setItem = (id, campo, v) => setItens((l) => l.map((x) => (x.id === id ? { ...x, [campo]: v } : x)));
-
-  async function salvar(m) { setBusy(true); try { await atualizarModelo(m.id, m); await onChange(); } finally { setBusy(false); } }
-  async function remover(m) {
-    if (!window.confirm(`Excluir o modelo "${m.nome}"?`)) return;
-    setBusy(true);
-    try { await excluirModelo(m.id); setItens((l) => l.filter((x) => x.id !== m.id)); await onChange(); } finally { setBusy(false); }
-  }
-  async function adicionar() {
-    if (!novo.nome.trim()) return;
-    setBusy(true);
-    try { const m = await criarModelo(novo); setItens((l) => [...l, m]); setNovo({ nome: "", instrucoes: "" }); await onChange(); } finally { setBusy(false); }
-  }
-
-  return (
-    <Modal open title="Modelos de ata" onClose={onClose} footer={<button className="btn primary" onClick={onClose}>Fechar</button>}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {itens.map((m) => (
-          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-            <input className="input" value={m.nome} onChange={(e) => setItem(m.id, "nome", e.target.value)} placeholder="Nome do tipo" />
-            <textarea className="textarea" style={{ minHeight: 70 }} value={m.instrucoes} onChange={(e) => setItem(m.id, "instrucoes", e.target.value)} placeholder="Instruções pra Tess (o foco desse tipo de reunião)" />
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button className="btn" style={{ color: "var(--danger)", boxShadow: "none" }} onClick={() => remover(m)} disabled={busy}>Excluir</button>
-              <button className="btn primary" onClick={() => salvar(m)} disabled={busy}>Salvar</button>
-            </div>
-          </div>
-        ))}
-        <div style={{ border: "1px dashed var(--border)", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div className="eyebrow">NOVO MODELO</div>
-          <input className="input" value={novo.nome} onChange={(e) => setNovo((n) => ({ ...n, nome: e.target.value }))} placeholder="Nome (ex: Negociação, Kickoff)" />
-          <textarea className="textarea" style={{ minHeight: 60 }} value={novo.instrucoes} onChange={(e) => setNovo((n) => ({ ...n, instrucoes: e.target.value }))} placeholder="Instruções pra Tess" />
-          <button className="btn primary" style={{ alignSelf: "flex-start" }} onClick={adicionar} disabled={busy || !novo.nome.trim()}>Adicionar modelo</button>
-        </div>
-      </div>
-    </Modal>
-  );
 }
 
 export default function NovaReuniao() {
@@ -315,7 +274,11 @@ export default function NovaReuniao() {
 
         {erro && <div style={{ fontSize: 13, color: "var(--danger)", background: "var(--danger-soft)", padding: "10px 12px", borderRadius: 9 }}>{erro}</div>}
 
-        {gerenciar && <GerenciarModelos modelos={modelos} onClose={() => setGerenciar(false)} onChange={recarregarModelos} />}
+        {gerenciar && (
+          <Modal open title="Modelos de ata" onClose={() => setGerenciar(false)} footer={<button className="btn primary" onClick={() => setGerenciar(false)}>Fechar</button>}>
+            <ModelosEditor onChange={(ms) => setModelos(ms)} />
+          </Modal>
+        )}
 
         <div>
           <button className="btn primary" disabled={!podeGerar} onClick={gerar} style={{ opacity: podeGerar ? 1 : 0.55 }}>

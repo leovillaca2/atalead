@@ -8,6 +8,7 @@ import NovaReuniao from "./screens/NovaReuniao.jsx";
 import Historico from "./screens/Historico.jsx";
 import Calendario from "./screens/Calendario.jsx";
 import Negocio from "./screens/Negocio.jsx";
+import Modelos from "./screens/Modelos.jsx";
 import Login from "./screens/Login.jsx";
 import { supabase } from "./lib/supabase.js";
 
@@ -35,6 +36,7 @@ function Sidebar({ email }) {
     { to: "/funil", name: "Funil", icon: "funil", match: (p) => p === "/funil" },
     { to: "/reunioes", name: "Reuniões", icon: "reunioes", match: (p) => p.startsWith("/reuni") },
     { to: "/passos", name: "Próximos passos", icon: "passos", match: (p) => p === "/passos" },
+    { to: "/modelos", name: "Modelos de ata", icon: "modelos", match: (p) => p === "/modelos" },
   ];
   const nome = email
     ? email.split("@")[0].split(/[._-]/).filter(Boolean).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ")
@@ -65,7 +67,7 @@ function Sidebar({ email }) {
 function TopBar({ tema, toggleTema }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const titulo = pathname === "/funil" ? "Funil" : pathname.startsWith("/negocio") ? "Negócio" : pathname === "/reunioes" ? "Reuniões" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/nova" ? "Nova reunião" : "Calendário";
+  const titulo = pathname === "/funil" ? "Funil" : pathname.startsWith("/negocio") ? "Negócio" : pathname === "/reunioes" ? "Reuniões" : pathname.startsWith("/reuniao") ? "Reunião" : pathname === "/passos" ? "Próximos passos" : pathname === "/modelos" ? "Modelos de ata" : pathname === "/nova" ? "Nova reunião" : "Calendário";
   return (
     <div className="topbar">
       <div className="crumbs"><span className="cur">{titulo}</span></div>
@@ -111,6 +113,7 @@ export default function App() {
           <Route path="/reunioes" element={<Historico />} />
           <Route path="/calendario" element={<Calendario />} />
           <Route path="/passos" element={<Passos />} />
+          <Route path="/modelos" element={<Modelos />} />
           <Route path="/nova" element={<NovaReuniao />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
