@@ -98,6 +98,12 @@ ESTADO 2026-07-11 (funcional e verificado em producao):
 - ADICIONAR NOTA na tela do lead grava DIRETO no Pipedrive (POST /notes via pipedrive-acao, escrita real; \n vira <br>); refresca a lista apos gravar.
 - TEMPERATURA do lead = campo LABEL do negocio no Pipedrive (ex.: Quente/Morno/Frio). Selector no card Dados do lead com as opcoes reais da conta (dealFields key "label"), dot colorido; mudar grava via pipedrive-acao action label (PUT /deals/{id} {label}). Se a conta NAO mostrar opcoes: ou nao usa o campo Label, ou usa multi-label novo (label_ids) e ai precisa ajustar. Respeita modo seguro.
 
+## Anti-duplicado no Pipedrive (2026-07-12)
+- Problema: enviar-pipedrive ja evitava duplicar ORG/PESSOA, mas sempre CRIAVA negocio novo, entao empresa com deal aberto virava 2 deals.
+- Decisoes do usuario: checar nos DOIS momentos, buscar por EMPRESA, ao vincular SO anexar ata+tarefas (nao mexe em etapa/valor).
+- Backend: pipedrive-meta ?tipo=negocios&empresa= busca negocios ABERTOS da org (organizations/search -> /organizations/{id}/deals?status=open), devolve candidatos {id,titulo,org,contato,dono,valor,atualizado}. enviar-pipedrive ganhou modo apenasAnexar: com dealId+apenasAnexar so roda anexarAtaEtarefas(nota da ata + proximos passos como atividades), sem tocar titulo/valor/etapa; helper anexarAtaEtarefas usado tb no create (refatorado). Respeita modo seguro.
+- Front: NovaReuniao mostra banner cedo (debounce 600ms na empresa) "essa empresa ja tem N negocio(s) aberto(s)". Reuniao: botao chama onEnviar -> se nao vinculado, busca por empresa; se achou, abre Modal "Essa empresa ja tem negocio" com candidatos (botao "Usar este" = enviar({linkDealId}) anexa) + rodape "Criar um novo mesmo assim"; se 0, cria normal. enviar() virou enviar({force,linkDealId}); conflito usa enviar({force:true}).
+
 ## PENDENTE (nao aplicado por escolha): mobile (nav no celular, token --faint->--text3, foco de teclado/labels, contraste --text3) e features (prazo->due_date, follow-up IA, regenerar/versionar ata, vincular a negocio existente=anti-duplicado). JWT do Supabase ainda vai na URL do /api/google/auth (medio, adiado).
 - Falta: Evernote (chave no suporte, modo colar cobre); trocar a senha fraca; refinar RLS por dono se virar multiusuario; seed opcional. Rodar /api local = `vercel dev`.
 
